@@ -1,0 +1,3135 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grenzland 1823 – Räuber und Polizist</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: Georgia, 'Iowan Old Style', serif;
+    background: #f4ecd8;
+    color: #2c2416;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  #app {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 12px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 2px solid #8a6f47;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+  }
+  h1 {
+    margin: 0;
+    font-size: 26px;
+    letter-spacing: 3px;
+    color: #5c3a1e;
+    font-weight: normal;
+  }
+  .subtitle {
+    font-style: italic;
+    color: #8a6f47;
+    font-size: 13px;
+  }
+  .header-status {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    font-size: 14px;
+  }
+  .player-badge {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    color: white;
+  }
+  .player-badge.saeumer { background: #b85541; }
+  .player-badge.gendarm { background: #1e3a5f; }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 16px;
+    min-height: 0;
+  }
+
+  #board-area {
+    background: #fdf7e8;
+    border: 2px solid #8a6f47;
+    border-radius: 8px;
+    padding: 10px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #board-wrap {
+    flex-shrink: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    min-height: 0;
+  }
+  #board {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    max-height: 100%;
+    height: auto;
+    user-select: none;
+  }
+  .hex {
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .hex:hover { opacity: 0.85; }
+  .hex.movable { stroke: #4a8a7c; stroke-width: 3; stroke-dasharray: 4 4; }
+  .hex.movable-hover { fill-opacity: 0.85; stroke: #d4a017; stroke-width: 4; }
+
+  .figure-text {
+    pointer-events: none;
+    font-weight: bold;
+    text-anchor: middle;
+    dominant-baseline: central;
+    user-select: none;
+  }
+  .draggable {
+    cursor: grab;
+    pointer-events: auto;
+    transition: filter 0.15s;
+  }
+  .draggable:hover { filter: brightness(1.15); }
+  .draggable.dragging { cursor: grabbing; opacity: 0.5; }
+  .smuggle-marker {
+    pointer-events: none;
+  }
+
+  #sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .panel {
+    background: #fdf7e8;
+    border: 2px solid #8a6f47;
+    border-radius: 8px;
+    padding: 10px;
+    flex-shrink: 0;
+  }
+  .panel h3 {
+    margin: 0 0 6px 0;
+    font-size: 13px;
+    color: #5c3a1e;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #c9b896;
+    padding-bottom: 4px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 2px 0;
+  }
+  .stat-row .label { color: #8a6f47; }
+  .stat-row .value { font-weight: bold; }
+  .panel .hint {
+    font-size: 11px;
+    color: #8a6f47;
+    font-style: italic;
+    margin: 6px 0;
+    line-height: 1.4;
+  }
+
+  #log-panel {
+    flex: 1;
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    min-height: 90px;
+    overflow: hidden;
+  }
+  #log-panel h3 { flex-shrink: 0; }
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #5c3a1e;
+    padding-right: 4px;
+    min-height: 0;
+  }
+  #log .log-entry {
+    padding: 2px 0;
+    border-bottom: 0.5px solid #e4d8b4;
+  }
+  #log .log-entry.saeumer { color: #b85541; }
+  #log .log-entry.gendarm { color: #1e3a5f; }
+  #log .log-entry.tile { color: #5c3a1e; font-style: italic; }
+  #log .log-entry.event { color: #d4a017; font-weight: bold; }
+
+  .role-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    vertical-align: middle;
+    margin: 0 8px;
+    border: 2.5px solid #fdf7e8;
+    background: #fdf7e8;
+    box-shadow: 0 0 0 1px #5c3a1e;
+  }
+  .role-icon-inline {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    vertical-align: middle;
+    margin: 0 3px 0 0;
+    border: 2px solid #fdf7e8;
+    background: #fdf7e8;
+    box-shadow: 0 0 0 1px #5c3a1e;
+  }
+  #intro-screen ul li {
+    line-height: 1.9;
+  }
+  button:has(.role-icon) {
+    padding: 12px 16px;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  button {
+    background: #8a6f47;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    margin-top: 6px;
+    width: 100%;
+    transition: background 0.15s;
+  }
+  button:hover:not(:disabled) { background: #5c3a1e; }
+  button:disabled { background: #c9b896; cursor: not-allowed; }
+  button.primary { background: #b85541; }
+  button.primary:hover:not(:disabled) { background: #8a3e30; }
+
+  #handover-screen, #win-screen, #intro-screen, #turn-summary-screen {
+    position: fixed;
+    inset: 0;
+    background: #2c2416;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  #turn-summary-screen { background: rgba(44, 36, 22, 0.85); }
+  #handover-screen[hidden], #win-screen[hidden], #intro-screen[hidden], #turn-summary-screen[hidden] {
+    display: none !important;
+  }
+  #turn-summary-screen .modal { max-width: 540px; }
+  #turn-summary-text ul { line-height: 1.7; padding-left: 22px; }
+  #turn-summary-text li { margin: 4px 0; color: #5c3a1e; }
+  #handover-screen .modal, #win-screen .modal, #intro-screen .modal, #turn-summary-screen .modal {
+    background: #fdf7e8;
+    padding: 28px 40px;
+    border-radius: 12px;
+    border: 3px solid #8a6f47;
+    text-align: center;
+    max-width: 600px;
+  }
+  #handover-screen h2, #win-screen h2, #intro-screen h2, #turn-summary-screen h2 {
+    color: #5c3a1e;
+    font-size: 22px;
+    letter-spacing: 2px;
+    margin-top: 0;
+  }
+  #handover-screen p, #win-screen p, #intro-screen p {
+    color: #5c3a1e;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  #intro-screen ul {
+    text-align: left;
+    color: #5c3a1e;
+    line-height: 1.7;
+    font-size: 13px;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 10px;
+    color: #8a6f47;
+    margin-top: 4px;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  @media (max-width: 1100px) {
+    main { grid-template-columns: 1fr; }
+    #sidebar { order: 2; }
+  }
+</style>
+</head>
+<body>
+
+<div id="intro-screen">
+  <div class="modal" id="intro-modal">
+
+    <div id="step-mode">
+      <div id="step-logo-box" style="max-width: 360px; margin: 0 auto 12px;">
+        <svg id="step-fallback-svg" viewBox="0 0 320 240" style="display: block; width: 100%; height: auto;" aria-hidden="true">
+          <rect x="14" y="20" width="292" height="200" rx="20" fill="#f4ecd8" stroke="#5c3a1e" stroke-width="3"/>
+          <polygon points="80,72 130,30 165,75 200,20 245,75" fill="#8a6f47" opacity="0.55"/>
+          <polygon points="55,90 95,50 130,90 165,42 195,90 235,55 275,90" fill="#5c4842" opacity="0.35"/>
+          <text x="160" y="138" font-family="Georgia, serif" font-size="48" font-weight="bold" text-anchor="middle" fill="#5c3a1e" letter-spacing="2">GRENZLAND</text>
+          <text x="160" y="186" font-family="Georgia, serif" font-size="44" font-weight="bold" text-anchor="middle" fill="#b85541" letter-spacing="3">1823</text>
+          <line x1="60" y1="200" x2="260" y2="200" stroke="#8a6f47" stroke-width="1" opacity="0.5"/>
+          <text x="160" y="210" font-family="Georgia, serif" font-size="9" text-anchor="middle" fill="#8a6f47" font-style="italic">Räuber &amp; Polizist im Prättigau</text>
+        </svg>
+        <img src="logo.png" alt="Grenzland 1823" id="step-logo-img"
+             style="display: none; width: 100%; height: auto;"
+             onload="document.getElementById('step-fallback-svg').style.display='none'; this.style.display='block';" />
+      </div>
+      <p style="font-style: italic;">Anno 1823 — Räuber schmuggeln über die Bündner Pässe, der Polizist wacht. Wie willst du spielen?</p>
+      <button onclick="chooseMode('hotseat')">Hot-Seat (1 Computer, 2 Spieler abwechselnd)</button>
+      <button onclick="chooseMode('ai')" class="primary">Gegen Computer (Solo)</button>
+      <button onclick="chooseMode('host')" class="primary">Online-Spiel erstellen (z.B. dein MacBook)</button>
+      <button onclick="chooseMode('join')" class="primary">Online-Spiel beitreten (z.B. Antonias iPad)</button>
+      <p id="online-hint" style="font-size: 11px; color: #b85541; margin-top: 16px; padding: 10px; background: #fce8e0; border-radius: 6px; text-align: left; line-height: 1.5;"></p>
+    </div>
+
+    <div id="step-ai" hidden>
+      <h2>Gegen Computer</h2>
+      <p>Welche Rolle willst du übernehmen?</p>
+      <button onclick="startAiGame('saeumer')"><img src="schmuggler.png" class="role-icon" onerror="this.outerHTML='🥷 '" />Räuber spielen — Computer ist Polizist</button>
+      <button onclick="startAiGame('gendarm')"><img src="gendarm.png" class="role-icon" onerror="this.outerHTML='👮 '" />Polizist + <img src="hund.png" class="role-icon" onerror="this.outerHTML='🐕 '" />Hund spielen — Computer ist Räuber</button>
+      <button onclick="goBackToMode()">Zurück</button>
+    </div>
+
+    <div id="step-hotseat" hidden>
+      <h2>GRENZLAND 1823 — Hot-Seat</h2>
+      <p style="font-style: italic;">Zwei Spieler an einem Computer, abwechselnd.</p>
+      <ul>
+        <li><img src="schmuggler.png" class="role-icon-inline" onerror="this.outerHTML='🥷 '" /><b>Räuber (rot)</b> — bringe mindestens 2 von 3 Schmuggelgütern aufs Madrisa-Joch.</li>
+        <li><img src="gendarm.png" class="role-icon-inline" onerror="this.outerHTML='👮 '" /><b>Polizist</b> + <img src="hund.png" class="role-icon-inline" onerror="this.outerHTML='🐕 '" /><b>Hund</b> — starten auf Madrisa. Fange alle 3 Räuber gleichzeitig.</li>
+        <li><b>Pro Zug 1 Aktion:</b> Figur per Drag-and-Drop bewegen <i>oder</i> eine Ereigniskarte ziehen.</li>
+        <li><img src="gueggelstein.png" class="role-icon-inline" onerror="this.outerHTML='🐓 '" /><b>Güggelstein:</b> Räuber befreit gefangene Mitspieler durch Berührung.</li>
+        <li><b>Stealth:</b> Räuber sind für den Polizisten unsichtbar — nur auf Felsen-Hexagons sichtbar.</li>
+      </ul>
+      <button onclick="startHotSeat()">Partie starten</button>
+      <button onclick="goBackToMode()">Zurück</button>
+    </div>
+
+    <div id="step-host" hidden>
+      <h2>Online-Spiel erstellen</h2>
+      <p>Welche Rolle willst du übernehmen?</p>
+      <button onclick="hostGame('saeumer')"><img src="schmuggler.png" class="role-icon" onerror="this.outerHTML='🥷 '" />Räuber spielen</button>
+      <button onclick="hostGame('gendarm')"><img src="gendarm.png" class="role-icon" onerror="this.outerHTML='👮 '" />Polizist + <img src="hund.png" class="role-icon" onerror="this.outerHTML='🐕 '" />Hund spielen</button>
+      <button onclick="goBackToMode()">Zurück</button>
+    </div>
+
+    <div id="step-host-waiting" hidden>
+      <h2>Warte auf Mitspieler ...</h2>
+      <p>Verbindungs-Code für den anderen Spieler:</p>
+      <div style="font-size: 22px; font-weight: bold; padding: 12px 20px; background: #f4e8c8; border-radius: 6px; letter-spacing: 1px; margin: 16px 0; word-break: break-all;" id="game-code">— wird erzeugt —</div>
+      <p style="font-size: 12px;">Sage Antonia, sie soll auf "Online-Spiel beitreten" tippen und diesen Code eingeben.</p>
+      <p id="host-status" style="color: #b85541; margin-top: 16px;">Verbinde mit Server ...</p>
+      <button onclick="cancelOnline()">Abbrechen</button>
+    </div>
+
+    <div id="step-join" hidden>
+      <h2>Online-Spiel beitreten</h2>
+      <p>Gib den Code vom anderen Spieler ein:</p>
+      <input type="text" id="join-code-input" placeholder="z.B. grenzland-abc4" maxlength="20" style="width: 100%; padding: 10px; font-size: 16px; letter-spacing: 1px; text-align: center; border: 2px solid #8a6f47; border-radius: 6px; font-family: inherit; margin: 8px 0; text-transform: lowercase;" />
+      <button onclick="joinGame()" class="primary">Beitreten</button>
+      <p id="join-status" style="color: #b85541; margin-top: 12px; min-height: 20px;"></p>
+      <button onclick="goBackToMode()">Zurück</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="handover-screen" hidden>
+  <div class="modal">
+    <h2 id="handover-title">Bitte weitergeben</h2>
+    <p id="handover-text">Reiche den Computer dem nächsten Spieler.</p>
+    <button onclick="continueAfterHandover()">Bereit – weiter</button>
+  </div>
+</div>
+
+<div id="win-screen" hidden>
+  <div class="modal">
+    <h2 id="win-title">Sieg!</h2>
+    <p id="win-text"></p>
+    <button onclick="restartGame()">Neue Partie</button>
+  </div>
+</div>
+
+<div id="turn-summary-screen" hidden>
+  <div class="modal">
+    <h2>Letzter Spielzug</h2>
+    <div id="turn-summary-text" style="text-align: left; padding: 0 8px;"></div>
+    <button onclick="closeTurnSummary()" class="primary">Verstanden</button>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div id="header-logo-wrap" style="height: 60px; flex-shrink: 0;">
+        <svg id="header-fallback-svg" viewBox="0 0 100 100" style="height: 60px; width: 60px; display: block;" aria-hidden="true">
+          <rect x="4" y="14" width="92" height="72" rx="10" fill="#f4ecd8" stroke="#5c3a1e" stroke-width="2.5"/>
+          <polygon points="22,30 38,15 50,28 62,12 78,30" fill="#8a6f47" opacity="0.7"/>
+          <text x="50" y="58" font-family="Georgia, serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#5c3a1e">GRENZLAND</text>
+          <text x="50" y="76" font-family="Georgia, serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#b85541">1823</text>
+        </svg>
+        <img src="logo.png" alt="Grenzland 1823" id="header-logo-img"
+             style="display: none; height: 60px; width: auto;"
+             onload="document.getElementById('header-fallback-svg').style.display='none'; this.style.display='block';" />
+      </div>
+      <div>
+        <h1>GRENZLAND 1823</h1>
+        <div class="subtitle">Räuber und Polizist im Bündner Prättigau</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <span id="round-display">Zug 1</span>
+      <span class="player-badge" id="active-player">Räuber am Zug</span>
+      <span id="net-status" style="display: none; padding: 4px 10px; background: #4a8a7c; color: white; border-radius: 4px; font-size: 12px; font-weight: bold;"></span>
+    </div>
+  </header>
+
+  <main>
+    <div id="board-area">
+      <div id="board-wrap">
+        <svg id="board" width="820" height="580" viewBox="0 0 820 580" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><img src="schmuggler.png" style="width:16px; height:16px; border-radius:50%; object-fit:cover;" onerror="this.outerHTML='<span style=&quot;font-size:14px;&quot;>🥷</span>'" />Räuber (rot)</div>
+        <div class="legend-item"><img src="gendarm.png" style="width:16px; height:16px; border-radius:50%; object-fit:cover;" onerror="this.outerHTML='<span style=&quot;font-size:14px;&quot;>👮</span>'" />Polizist (blau)</div>
+        <div class="legend-item"><img src="hund.png" style="width:16px; height:16px; border-radius:50%; object-fit:cover;" onerror="this.outerHTML='<span style=&quot;font-size:14px;&quot;>🐕</span>'" />Hund</div>
+        <div class="legend-item"><span style="font-size:14px;">💰</span>Beute</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#6b8e4e;"></span>Wald</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#b5a888;"></span>Fels</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#d8e3ec;"></span>Schnee</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#4a4036;"></span>Schlucht</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#c19a6b;"></span>Hütte</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#5c4842;"></span>Verlies</div>
+      </div>
+      <div class="panel" id="log-panel">
+        <h3>Verlauf</h3>
+        <div id="log"></div>
+      </div>
+    </div>
+
+    <div id="sidebar">
+      <div class="panel">
+        <h3>Status</h3>
+        <div class="stat-row"><span class="label">Schmuggelgut am Ziel</span><span class="value" id="stat-delivered">0 / 3</span></div>
+        <div class="stat-row"><span class="label">Räuber frei</span><span class="value" id="stat-free">3 / 3</span></div>
+        <div class="stat-row"><span class="label">Im Verlies</span><span class="value" id="stat-prison">0</span></div>
+        <div class="stat-row"><span class="label">Wetter-Karten</span><span class="value" id="stat-deck">20</span></div>
+        <div class="stat-row"><span class="label">Nächstes Wetter</span><span class="value" id="stat-next-weather">in 3 Zügen</span></div>
+        <div class="stat-row"><span class="label">Letztes Wetter</span><span class="value" id="stat-weather">–</span></div>
+      </div>
+
+      <div class="panel">
+        <h3>Aktion</h3>
+        <div class="stat-row"><span class="label">Status</span><span class="value" id="actions-left">verfügbar</span></div>
+        <div class="stat-row"><span class="label">Eigenes Karten-Deck</span><span class="value" id="stat-player-deck">–</span></div>
+        <p class="hint" id="action-hint">Pro Zug: eine Figur per Drag-and-Drop bewegen <b>oder</b> eine Ereigniskarte ziehen.</p>
+        <button id="draw-card-btn" onclick="drawAndPlayCard()" class="primary">Ereigniskarte ziehen</button>
+        <button id="cancel-card-btn" onclick="cancelCardAction()" hidden style="background: #b85541;">Aktion abbrechen</button>
+        <button id="end-turn-btn" onclick="endTurn()">Zug beenden (passen)</button>
+      </div>
+
+      <div class="panel">
+        <h3>Letzte Karte</h3>
+        <div id="last-card" style="font-size: 12px; color: #5c3a1e; min-height: 40px;">
+          <div style="color: #8a6f47; font-style: italic;">Noch keine Karte gespielt.</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============================================================
+// PRÄTTIGAU — Hex-of-Hexes Layout (Side 4 = 37 Hexagons)
+// Axial-Koordinaten: (q, r) mit Constraint max(|q|,|r|,|q+r|) <= 3
+// ============================================================
+
+const HEX_RADIUS = 3;          // Side length 4 = radius 3
+const HEX_SIZE = 38;           // Pixel-Radius eines Hexagons
+const SVG_W = 820;
+const SVG_H = 580;
+const CENTER_X = 400;
+const CENTER_Y = 290;
+
+// Spezial-Tiles außerhalb des Hex-Bretts
+const PANY_POS = { x: 400, y: 540 };       // unten mittig
+const MADRISA_POS = { x: 400, y: 50 };     // oben mittig
+const VERLIES_POS = { x: 760, y: 540 };    // unten rechts
+
+const PANY_HEX = { q: -100, r: -100, type: 'pany' };
+const MADRISA_HEX = { q: -100, r: -101, type: 'madrisa' };
+const VERLIES_HEX = { q: -101, r: -100, type: 'verlies' };
+
+// Farbpalette harmoniert mit dem Brettspiel-Logo (warmes Pergament, Holzbraun, Almgold, gedämpftes Tannengrün)
+const TILE_COLORS = {
+  forest: '#5e7a45',      // gedämpftes Tannengrün (wie die Tannen im Logo)
+  rock: '#a89880',        // warmer Felsenstein-Beige (statt kühl-grau)
+  snow: '#dde2e5',        // warm getönter Schnee (statt blau-weiss)
+  ravine: '#3a3128',      // dunkles Erdbraun (wie der Schild-Rahmen)
+  hut: '#b8895a',         // warmes Holzbraun (wie die Truhe im Logo)
+  guggelstein: '#caa86d', // warmes Almgold (wie die Laterne im Logo)
+  pany: '#e8c468',        // sonniges Almgold
+  madrisa: '#6e8a8e',     // dezentes Bergblau-Grau
+  verlies: '#4a3d34'      // dunkles Anthrazit-Braun
+};
+const TILE_LABELS = {
+  forest: 'Wald',
+  rock: 'Fels',
+  snow: 'Schnee',
+  ravine: 'Schlucht',
+  hut: 'Hütte',
+  guggelstein: 'Güggelstein',
+  pany: 'Pany',
+  madrisa: 'Madrisa',
+  verlies: 'Verlies'
+};
+
+const SAEUMER_DECK_TEMPLATE = [
+  { title: 'Hilferuf', effect: 'Alle Räuber rücken automatisch 1 Hex Richtung Pass', type: 'help_call', count: 4 },
+  { title: 'Heuschober', effect: 'Wähle einen Räuber — versteckt für 1 Runde', type: 'hide', count: 4 },
+  { title: 'Verkleidung', effect: 'Wähle einen Räuber — 1 Runde nicht fangbar', type: 'disguise', count: 3 },
+  { title: 'Geheimpfad', effect: 'Wähle Räuber — 2 Hex Richtung Pass automatisch', type: 'secret_path', count: 3 },
+  { title: 'Knall', effect: 'Wähle Polizist — er weicht 1 Hex zurück', type: 'bang', count: 3 },
+  { title: 'Befreier', effect: 'Befreit gefangenen Räuber aus dem Verlies', type: 'liberator', count: 2 },
+  { title: 'Schleichen', effect: 'Atmosphäre — keine Spuren in dieser Runde', type: 'sneak', count: 1 }
+];
+
+const GENDARM_DECK_TEMPLATE = [
+  { title: 'Verstärkung', effect: 'Polizist rückt automatisch 2 Hex Richtung Räuber', type: 'reinforce', count: 4 },
+  { title: 'Hetzjagd', effect: 'Hund pirscht 2 Hex zum nächsten Räuber', type: 'hunt', count: 4 },
+  { title: 'Drahtschlinge', effect: 'Klicke ein Hex — Falle wird platziert', type: 'snare', count: 3 },
+  { title: 'Stutzen-Schuss', effect: 'Klicke Räuber in 3 Hex Reichweite — betäubt', type: 'shot', count: 3 },
+  { title: 'Schnellgriff', effect: 'Klicke Räuber auf Nachbar-Hex — gefangen', type: 'quickgrab', count: 3 },
+  { title: 'Wegsperre', effect: 'Klicke Hex — 2 Runden unpassierbar', type: 'block', count: 2 },
+  { title: 'Witterung', effect: 'Atmosphäre — Hund schnüffelt', type: 'scent', count: 1 }
+];
+
+const TILE_DECK_TEMPLATE = [
+  // Wetter
+  { title: 'Lawine', effect: '2 angrenzende Hex für 3 Spielzüge gesperrt', type: 'avalanche', count: 3 },
+  { title: 'Schneesturm', effect: 'Räuber sind 2 Runden komplett unsichtbar', type: 'blizzard', count: 2 },
+  { title: 'Mondlicht', effect: 'Alle Räuber sind 2 Runden sichtbar', type: 'moonlight', count: 2 },
+  // Naturkatastrophen
+  { title: 'Erdrutsch', effect: '3 zufällige Hex für 4 Spielzüge gesperrt', type: 'landslide', count: 2 },
+  { title: 'Felssturz am Madrisa', effect: '1 Hex permanent gesperrt', type: 'rockfall', count: 1 },
+  { title: 'Wildbach-Überflutung', effect: '2 zusammenhängende Hex für 3 Spielzüge gesperrt', type: 'flood', count: 1 },
+  // Tiere
+  { title: 'Hund schnüffelt Witterung', effect: 'Hund pirscht 2 Hex zum Räuber', type: 'sniff', count: 3 },
+  { title: 'Adler kreist', effect: 'Ein Räuber wird 2 Runden für Polizist sichtbar', type: 'eagle', count: 2 },
+  { title: 'Steinbock-Herde', effect: 'Räuber auf Felsen flüchten 2 Hex Richtung Pany', type: 'ibex', count: 1 },
+  // Menschen
+  { title: 'Polizist versumpft beim Bauern auf der Alp', effect: 'Polizist verliert nächste Aktion', type: 'farmer', count: 3 },
+  { title: 'Sternschnuppenregen', effect: 'Räuber auf Mittelreihe sind 1 Runde sichtbar', type: 'meteor', count: 2 },
+  { title: 'Wachablösung', effect: 'Polizist und Hund tauschen Position', type: 'shift', count: 1 },
+  // Folklore / Mystisch
+  { title: 'Räuber-Versammlung am Güggelstein', effect: 'Alle freien Räuber teleportieren zum Güggelstein', type: 'gathering', count: 1 },
+  { title: 'Berggeist hilft den Schmugglern', effect: 'Ein Räuber rückt automatisch 2 Hex Richtung Pass', type: 'spirit', count: 1 },
+  { title: 'Alpsegen', effect: 'Alle Räuber 1 Runde nicht fangbar', type: 'blessing', count: 1 }
+];
+
+const TURNS_BETWEEN_WEATHER = 5;
+
+const AXIAL_DIRS = [
+  { q: 1,  r: 0  },
+  { q: 1,  r: -1 },
+  { q: 0,  r: -1 },
+  { q: -1, r: 0  },
+  { q: -1, r: 1  },
+  { q: 0,  r: 1  }
+];
+
+let game;
+let dragState = null;
+
+// Cache für Figuren-Bilder: null = noch nicht geprüft, true = geladen, false = nicht verfügbar
+const figureImageCache = {
+  'gendarm.png': null,
+  'hund.png': null,
+  'schmuggler.png': null
+};
+
+function preloadFigureImages() {
+  Object.keys(figureImageCache).forEach(path => {
+    if (figureImageCache[path] !== null) return;
+    const img = new Image();
+    img.onload = () => {
+      figureImageCache[path] = true;
+      // Re-render falls das Spiel schon läuft
+      if (game && !game.gameOver) renderAll();
+    };
+    img.onerror = () => {
+      figureImageCache[path] = false;
+    };
+    img.src = path;
+  });
+}
+
+// Beim Laden gleich preloaden
+window.addEventListener('DOMContentLoaded', preloadFigureImages);
+
+// ============================================================
+// NETZWERK / MULTIPLAYER
+// ============================================================
+let net = {
+  mode: 'hotseat',  // 'hotseat' | 'host' | 'join'
+  myRole: null,     // 'saeumer' | 'gendarm' (nur im Online-Modus)
+  peer: null,
+  conn: null,
+  peerId: null,
+  connected: false
+};
+
+function checkLocationForOnline() {
+  // Online-Multiplayer braucht HTTPS oder localhost — file:// funktioniert nicht
+  const proto = window.location.protocol;
+  const hint = document.getElementById('online-hint');
+  if (!hint) return true;
+  if (proto === 'file:') {
+    hint.innerHTML = '⚠ <b>Achtung:</b> Diese Datei ist als lokale Datei geöffnet (file://). Online-Multiplayer wird auf vielen Geräten <b>nicht funktionieren</b> (besonders auf iPad/Safari). Lade die Datei auf einen Webserver, z.B. <b>GitHub Pages</b> (kostenlos), und öffne sie über die HTTPS-URL.';
+    hint.style.display = '';
+    return false;
+  }
+  if (proto === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    hint.style.display = 'none';
+    return true;
+  }
+  hint.innerHTML = '⚠ Datei ist nicht über HTTPS geladen. Online-Multiplayer könnte fehlschlagen. Empfehle Hosting via GitHub Pages.';
+  hint.style.display = '';
+  return false;
+}
+
+function chooseMode(mode) {
+  if (mode === 'host' || mode === 'join') {
+    checkLocationForOnline();
+  }
+  document.getElementById('step-mode').hidden = true;
+  if (mode === 'hotseat') {
+    document.getElementById('step-hotseat').hidden = false;
+  } else if (mode === 'host') {
+    document.getElementById('step-host').hidden = false;
+  } else if (mode === 'join') {
+    document.getElementById('step-join').hidden = false;
+  } else if (mode === 'ai') {
+    document.getElementById('step-ai').hidden = false;
+  }
+}
+
+function goBackToMode() {
+  ['step-hotseat','step-host','step-host-waiting','step-join','step-ai'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.hidden = true;
+  });
+  document.getElementById('step-mode').hidden = false;
+  cancelOnline();
+}
+
+function startAiGame(humanRole) {
+  net.mode = 'ai';
+  net.myRole = humanRole;
+  net.aiRole = (humanRole === 'saeumer') ? 'gendarm' : 'saeumer';
+  document.getElementById('intro-screen').hidden = true;
+  initGame();
+  renderAll();
+  // Falls die KI als Räuber beginnt: nach kurzer Pause Zug ausführen
+  if (game.activePlayer === net.aiRole) {
+    triggerAiTurn();
+  }
+}
+
+function cancelOnline() {
+  if (net.peer) {
+    try { net.peer.destroy(); } catch (e) {}
+  }
+  net.peer = null;
+  net.conn = null;
+  net.connected = false;
+  net.mode = 'hotseat';
+  net.myRole = null;
+}
+
+function startHotSeat() {
+  net.mode = 'hotseat';
+  net.myRole = null;
+  document.getElementById('intro-screen').hidden = true;
+  initGame();
+  renderAll();
+}
+
+const PEER_CONFIG = {
+  debug: 1,
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' }
+    ]
+  }
+};
+
+function generateGameCode() {
+  // Format: grenzland-xxxx (4 Zeichen, ohne verwechselbare wie 0/O, 1/l/I)
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  let suffix = '';
+  for (let i = 0; i < 4; i++) {
+    suffix += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return 'grenzland-' + suffix;
+}
+
+function hostGame(role) {
+  net.mode = 'host';
+  net.myRole = role;
+  document.getElementById('step-host').hidden = true;
+  document.getElementById('step-host-waiting').hidden = false;
+
+  const peerId = generateGameCode();
+  setHostStatus('Verbinde mit Server ...', '#8a6f47');
+
+  try {
+    net.peer = new Peer(peerId, PEER_CONFIG);
+  } catch (e) {
+    setHostStatus('Konnte PeerJS nicht starten: ' + e.message, '#b85541');
+    return;
+  }
+
+  net.peer.on('open', (id) => {
+    net.peerId = id;
+    document.getElementById('game-code').textContent = id;
+    setHostStatus('✓ Bereit. Warte auf Antonia...', '#4a8a7c');
+  });
+
+  net.peer.on('connection', (conn) => {
+    setHostStatus('Mitspieler kommt rein ...', '#8a6f47');
+    net.conn = conn;
+    setupConnectionHandlers();
+    conn.on('open', () => {
+      net.connected = true;
+      setHostStatus('✓ Verbunden! Spiel startet ...', '#4a8a7c');
+      initGame();
+      sendMessage({ type: 'init', state: serializeGame(), hostRole: net.myRole });
+      setTimeout(() => {
+        document.getElementById('intro-screen').hidden = true;
+        document.getElementById('step-host-waiting').hidden = true;
+        showNetStatus();
+        renderAll();
+      }, 600);
+    });
+  });
+
+  net.peer.on('error', (err) => {
+    console.error('Peer-Fehler (Host):', err);
+    setHostStatus('Fehler: ' + (err.type || err.message || 'unbekannt'), '#b85541');
+  });
+
+  net.peer.on('disconnected', () => {
+    setHostStatus('Server-Verbindung getrennt. Versuche neu zu verbinden ...', '#b85541');
+    setTimeout(() => {
+      try { if (net.peer && !net.peer.destroyed) net.peer.reconnect(); } catch (e) {}
+    }, 1000);
+  });
+}
+
+function setHostStatus(text, color) {
+  const el = document.getElementById('host-status');
+  if (el) { el.textContent = text; el.style.color = color || '#5c3a1e'; }
+}
+function setJoinStatus(text, color) {
+  const el = document.getElementById('join-status');
+  if (el) { el.textContent = text; el.style.color = color || '#5c3a1e'; }
+}
+
+function joinGame() {
+  let code = document.getElementById('join-code-input').value.trim().toLowerCase();
+  if (!code) {
+    setJoinStatus('Bitte einen Code eingeben.', '#b85541');
+    return;
+  }
+  // Wenn nur das Suffix eingegeben wurde, "grenzland-" automatisch davor setzen
+  if (!code.startsWith('grenzland-')) {
+    code = 'grenzland-' + code;
+  }
+  if (code.length < 12 || code.length > 20) {
+    setJoinStatus('Code-Format: grenzland-xxxx', '#b85541');
+    return;
+  }
+  net.mode = 'join';
+  setJoinStatus('Verbinde mit Server ...', '#8a6f47');
+
+  try {
+    net.peer = new Peer(undefined, PEER_CONFIG);
+  } catch (e) {
+    setJoinStatus('Konnte PeerJS nicht starten: ' + e.message, '#b85541');
+    return;
+  }
+
+  net.peer.on('open', (myId) => {
+    setJoinStatus('Server-Verbindung OK. Verbinde mit Bernhards Spiel ...', '#8a6f47');
+    net.conn = net.peer.connect(code, { reliable: true });
+    setupConnectionHandlers();
+
+    const connTimeout = setTimeout(() => {
+      if (!net.connected) {
+        setJoinStatus('✗ Verbindung dauert zu lange. Code prüfen oder Spiel neu starten.', '#b85541');
+      }
+    }, 12000);
+
+    net.conn.on('open', () => {
+      clearTimeout(connTimeout);
+      net.connected = true;
+      setJoinStatus('✓ Verbunden! Warte auf Spielstart ...', '#4a8a7c');
+    });
+  });
+
+  net.peer.on('error', (err) => {
+    console.error('Peer-Fehler (Join):', err);
+    let msg = 'Fehler: ' + (err.type || err.message || 'unbekannt');
+    if (err.type === 'peer-unavailable') {
+      msg = '✗ Code nicht gefunden. Tippfehler? Spiel beim Host noch offen?';
+    } else if (err.type === 'network' || err.type === 'server-error') {
+      msg = '✗ Server nicht erreichbar. Internet prüfen, Datei muss von HTTPS-Adresse geladen sein.';
+    }
+    setJoinStatus(msg, '#b85541');
+  });
+}
+
+function setupConnectionHandlers() {
+  if (!net.conn) return;
+  net.conn.on('data', handleNetMessage);
+  net.conn.on('close', () => {
+    addLog('⚠ Verbindung zum Mitspieler verloren.', 'event');
+    net.connected = false;
+    showNetStatus();
+  });
+  net.conn.on('error', (err) => {
+    console.error('Connection error:', err);
+  });
+}
+
+function handleNetMessage(msg) {
+  if (msg.type === 'init') {
+    // Beitreter empfängt initialen State
+    net.myRole = (msg.hostRole === 'saeumer') ? 'gendarm' : 'saeumer';
+    deserializeGame(msg.state);
+    document.getElementById('intro-screen').hidden = true;
+    document.getElementById('step-join').hidden = true;
+    showNetStatus();
+    renderAll();
+  } else if (msg.type === 'state') {
+    deserializeGame(msg.state);
+    renderAll();
+    // Zeige Summary, wenn ich nun dran bin und Events vom Gegner gibt
+    if (isMyTurn()) {
+      showTurnSummary(game.lastTurnEvents);
+    }
+  } else if (msg.type === 'log') {
+    addLog(msg.text, msg.cls || '');
+  }
+}
+
+function sendMessage(msg) {
+  if (net.conn && net.connected) {
+    try { net.conn.send(msg); } catch (e) { console.error('Send-Fehler:', e); }
+  }
+}
+
+function broadcastState() {
+  if (net.mode !== 'hotseat' && net.connected) {
+    sendMessage({ type: 'state', state: serializeGame() });
+  }
+}
+
+function serializeGame() {
+  return JSON.parse(JSON.stringify(game));
+}
+
+function deserializeGame(state) {
+  game = state;
+}
+
+function isMyTurn() {
+  if (net.mode === 'hotseat') return true;
+  if (net.mode === 'ai') return game && game.activePlayer === net.myRole;
+  return game && game.activePlayer === net.myRole;
+}
+
+function isAiTurn() {
+  return net.mode === 'ai' && game && !game.gameOver && game.activePlayer === net.aiRole;
+}
+
+function getViewerRole() {
+  if (net.mode === 'hotseat') return game.activePlayer;
+  return net.myRole;
+}
+
+function showNetStatus() {
+  const el = document.getElementById('net-status');
+  if (!el) return;
+  if (net.mode === 'hotseat') {
+    el.style.display = 'none';
+  } else if (net.mode === 'ai') {
+    el.style.display = '';
+    el.style.background = '#5c3a1e';
+    const roleText = (net.myRole === 'saeumer') ? '🥷 Räuber' : '👮 Polizist';
+    el.textContent = '🤖 vs. Computer — du: ' + roleText;
+  } else {
+    el.style.display = '';
+    el.style.background = '#4a8a7c';
+    const roleText = (net.myRole === 'saeumer') ? '🥷 Räuber' : '👮 Polizist';
+    el.textContent = (net.connected ? '🟢 Online — du: ' : '🔴 Getrennt — du: ') + roleText;
+  }
+}
+
+// ============================================================
+// KI-GEGNER (einfache Heuristik)
+// ============================================================
+function triggerAiTurn() {
+  if (!isAiTurn()) return;
+  setTimeout(() => {
+    if (isAiTurn() && !game.gameOver) doAiTurn();
+  }, 900);
+}
+
+function doAiTurn() {
+  if (!isAiTurn() || game.gameOver) return;
+
+  // Wenn pendingCardAction noch offen (sollte nicht passieren), abbrechen
+  if (game.pendingCardAction) {
+    game.pendingCardAction = null;
+  }
+
+  let bestMove = null;
+  if (net.aiRole === 'saeumer') {
+    bestMove = chooseBestSaeumerMove();
+  } else {
+    bestMove = chooseBestGendarmMove();
+  }
+
+  if (bestMove) {
+    moveFigure(bestMove.figure, bestMove.target);
+  } else {
+    // Keine sinnvolle Bewegung — ziehe Karte (oder pass wenn Deck leer)
+    if (game.decks[net.aiRole].length > 0 && Math.random() < 0.7) {
+      aiPlayCard();
+    } else {
+      // Pass
+      game.actionsLeft = 0;
+      addLog(`🤖 ${net.aiRole === 'saeumer' ? 'Räuber-' : 'Polizist-'}KI passt.`, '');
+      endActionsPhase();
+    }
+  }
+}
+
+function getAiMoves(figure) {
+  // Berechne mögliche Züge wie computeMovableHexes, ohne State-Manipulation
+  if (!figure || figure.captured) return [];
+  if (figure.trapped > 0) return [];
+  const moves = [];
+  const at = figure.at;
+  if (at.type === 'pany') {
+    for (const h of [{q:-3,r:3},{q:-2,r:3},{q:-1,r:3},{q:0,r:3}]) {
+      if (isInBoard(h.q, h.r) && !isLocked(h.q, h.r) && canEnterHex(h.q, h.r, net.aiRole)) {
+        moves.push({ q: h.q, r: h.r, type: null });
+      }
+    }
+    return moves;
+  }
+  if (at.type === 'madrisa') {
+    for (const h of [{q:0,r:-3},{q:1,r:-3},{q:2,r:-3},{q:3,r:-3}]) {
+      if (isInBoard(h.q, h.r) && !isLocked(h.q, h.r) && canEnterHex(h.q, h.r, net.aiRole)) {
+        moves.push({ q: h.q, r: h.r, type: null });
+      }
+    }
+    return moves;
+  }
+  if (at.type === 'verlies') {
+    for (const h of [{q:-3,r:3},{q:-2,r:3},{q:-1,r:3},{q:0,r:3}]) {
+      if (isInBoard(h.q, h.r) && !isLocked(h.q, h.r) && canEnterHex(h.q, h.r, net.aiRole)) {
+        moves.push({ q: h.q, r: h.r, type: null });
+      }
+    }
+    return moves;
+  }
+  // Brett
+  getNeighbors(at.q, at.r).forEach(n => {
+    if (isInBoard(n.q, n.r) && !isLocked(n.q, n.r) && canEnterHex(n.q, n.r, net.aiRole)) {
+      moves.push({ q: n.q, r: n.r, type: null });
+    }
+  });
+  if (net.aiRole === 'saeumer') {
+    if (at.r === 3) moves.push({ ...PANY_HEX });
+    if (at.r === -3) moves.push({ ...MADRISA_HEX });
+  } else {
+    if (at.r >= 1) moves.push({ ...VERLIES_HEX });
+    if (at.r === -3) moves.push({ ...MADRISA_HEX });
+  }
+  return moves;
+}
+
+function chooseBestSaeumerMove() {
+  const candidates = [];
+  game.figures.saeumer.forEach(s => {
+    if (s.captured || s.trapped > 0) return;
+    const moves = getAiMoves(s);
+    moves.forEach(target => {
+      const score = scoreSaeumerMove(s, target);
+      candidates.push({ figure: s, target, score });
+    });
+  });
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => b.score - a.score);
+  if (candidates[0].score < -100) return null;
+
+  // Räuber-KI weniger deterministisch: 70% Top-1, 30% Top-2 (sofern existiert)
+  if (candidates.length >= 2 && candidates[1].score > -100 && Math.random() < 0.3) {
+    return candidates[1];
+  }
+  return candidates[0];
+}
+
+function isOnBoardHex(at) {
+  return at && at.q !== undefined && at.q > -50;
+}
+
+function scoreSaeumerMove(s, target) {
+  let score = 0;
+  // Madrisa abliefern → Top-Priorität
+  if (target.type === 'madrisa' && s.carrying) return 10000;
+  if (target.type === 'madrisa' && !s.carrying) return -50;
+  // Pany aufnehmen wenn keine Beute
+  if (target.type === 'pany' && !s.carrying) score += 80;
+  if (target.type === 'pany' && s.carrying) return -50;
+
+  // Brett-Hex als Ziel
+  if (target.q !== undefined && target.q > -50) {
+    // Quelle bestimmen
+    if (s.at.type === 'pany') {
+      // Vom Pany aufs Brett: hoher Score, vor allem mit Beute
+      score += s.carrying ? 250 : 60;
+    } else if (s.at.type === 'verlies') {
+      score += 120;
+    } else if (isOnBoardHex(s.at)) {
+      // Auf Brett: Bewegung Richtung Madrisa (kleinerer r)
+      if (s.carrying) score += (s.at.r - target.r) * 30;
+      else score += (s.at.r - target.r) * 5;
+    }
+
+    const tile = game.board[`${target.q},${target.r}`];
+    if (tile) {
+      if (tile.type === 'rock') {
+        const minDistToPolice = Math.min(...game.figures.gendarm.map(g =>
+          isOnBoardHex(g.at) ? hexDistance(g.at, target) : 99
+        ));
+        if (minDistToPolice <= 2) score -= 60;
+        else score -= 15;
+      }
+      if (tile.type === 'guggelstein' && game.figures.saeumer.some(o => o.captured)) {
+        score += 800;
+      }
+      if (!s.carrying) {
+        const goodHere = game.smuggleGoods.find(g =>
+          !g.delivered && !g.carriedBy && g.at.q === target.q && g.at.r === target.r
+        );
+        if (goodHere) score += 400;
+      }
+    }
+
+    game.figures.gendarm.forEach(g => {
+      if (!isOnBoardHex(g.at)) return;
+      const d = hexDistance(g.at, target);
+      if (d === 0) score -= 1000;
+      else if (d === 1) score -= 60;
+      else if (d === 2) score -= 15;
+    });
+
+    if (getTrap(target.q, target.r)) score -= 80;
+  }
+
+  // Etwas Rauschen
+  score += Math.random() * 8 - 4;
+  return score;
+}
+
+// Welche Räuber sieht die Polizist-KI? Stealth-Regeln einhalten:
+// - sichtbar auf Felsen-Tile
+// - sichtbar wenn Polizist/Hund 1 Hex daneben (Witterung)
+// - sichtbar in Pany (Spawn ist bekannt)
+// - unsichtbar in allen anderen Wäldern, Hütten, Schluchten, Schnee
+function getVisibleRaeuberForAi() {
+  return game.figures.saeumer.filter(s => {
+    if (s.captured) return false;
+    if (s.at.type === 'pany') return true;
+    if (s.at.type === 'verlies') return false;
+    if (!isOnBoardHex(s.at)) return false;
+    const tile = game.board[`${s.at.q},${s.at.r}`];
+    if (tile && tile.type === 'rock') return true;
+    const close = game.figures.gendarm.some(g =>
+      isOnBoardHex(g.at) && hexDistance(g.at, s.at) <= 1
+    );
+    return close;
+  });
+}
+
+function chooseBestGendarmMove() {
+  const visible = getVisibleRaeuberForAi();
+  // Wenn keiner sichtbar: vermutete Position (zufällig in untere Brett-Hälfte)
+  let suspectedHex = null;
+  if (visible.length === 0) {
+    // Vermute Räuber irgendwo unten — wähle ein zufälliges Hex mit r >= 1
+    const lowerHexes = Object.values(game.board).filter(t => t.r >= 1 && t.type !== 'guggelstein');
+    if (lowerHexes.length > 0) {
+      suspectedHex = lowerHexes[Math.floor(Math.random() * lowerHexes.length)];
+    }
+  }
+
+  const candidates = [];
+  game.figures.gendarm.forEach(g => {
+    const moves = getAiMoves(g);
+    moves.forEach(target => {
+      const score = scoreGendarmMove(g, target, visible, suspectedHex);
+      candidates.push({ figure: g, target, score });
+    });
+  });
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => b.score - a.score);
+  if (candidates[0].score < -100) return null;
+
+  // Polizist-KI auch unscharf: 70% Top-1, 30% Top-2
+  if (candidates.length >= 2 && candidates[1].score > -100 && Math.random() < 0.3) {
+    return candidates[1];
+  }
+  return candidates[0];
+}
+
+function scoreGendarmMove(g, target, visibleRaeuber, suspectedHex) {
+  let score = 0;
+  if (target.q !== undefined && target.q > -50) {
+    // Sichtbaren Räuber stellen — Top-Priorität
+    const caught = visibleRaeuber.find(s =>
+      s.at.q === target.q && s.at.r === target.r &&
+      s.disguised <= 0 && s.hidden <= 0
+    );
+    if (caught) return 8000;
+
+    if (visibleRaeuber.length > 0) {
+      // Bewegung Richtung nähestem sichtbaren Räuber
+      let minDist = 99;
+      let nearest = null;
+      visibleRaeuber.forEach(s => {
+        if (!isOnBoardHex(s.at)) return;
+        const d = hexDistance(target, s.at);
+        if (d < minDist) { minDist = d; nearest = s; }
+      });
+      if (nearest) {
+        score += (10 - minDist) * 25;
+        if (nearest.carrying) score += 30;
+      }
+    } else {
+      // Keiner sichtbar → bewege Richtung vermuteter Position oder untere Brett-Hälfte
+      if (suspectedHex) {
+        const d = hexDistance(target, suspectedHex);
+        score += (10 - d) * 8;
+      }
+      score += target.r * 6; // Richtung Pany erkunden
+    }
+
+    // Madrisa-Schutz: nicht ganz oben bleiben
+    if (target.r === -3) score -= 30;
+
+    // Vom Madrisa-Spawn weg (Anfang)
+    if (g.at.type === 'madrisa') score += 200;
+
+    if (getTrap(target.q, target.r)) score -= 30;
+  }
+
+  // Etwas Rauschen
+  score += Math.random() * 8 - 4;
+  return score;
+}
+
+function aiPlayCard() {
+  if (game.decks[net.aiRole].length === 0) {
+    game.actionsLeft = 0;
+    endActionsPhase();
+    return;
+  }
+  const card = game.decks[net.aiRole].shift();
+  game.lastCard = { ...card, player: net.aiRole };
+  addLog(`🤖 Ereigniskarte: ${card.title} — ${card.effect}`, net.aiRole);
+
+  // Karten-Ziel automatisch wählen
+  switch (card.type) {
+    case 'help_call':
+    case 'reinforce':
+    case 'hunt':
+    case 'sneak':
+    case 'scent':
+      playCardEffect(card);
+      break;
+    case 'liberator':
+      playCardEffect(card);
+      break;
+    case 'snare': {
+      // Falle dort wo Räuber durchläuft (Mittelreihe oder vor freiem Räuber)
+      const target = aiChooseSnareTarget();
+      if (target) {
+        game.traps.push({ hex: { q: target.q, r: target.r }, owner: 'gendarm', untilRound: game.round + 4 });
+        addLog(`👮 Polizist-Karte „Drahtschlinge": Falle auf (${target.q},${target.r}). Wirkt 4 Spielzüge.`, 'event');
+      }
+      consumeCardEffect();
+      break;
+    }
+    case 'block': {
+      const target = aiChooseSnareTarget();
+      if (target) {
+        game.lockedHexes.push({ q: target.q, r: target.r, untilRound: game.round + 4 });
+        addLog(`👮 Polizist-Karte „Wegsperre": Hex (${target.q},${target.r}) gesperrt für 4 Spielzüge.`, 'event');
+      }
+      consumeCardEffect();
+      break;
+    }
+    case 'shot': {
+      // Räuber im 3-Hex-Radius eines Polizisten betäuben
+      const target = aiChooseShotTarget();
+      if (target) {
+        target.trapped = 1;
+        addLog(`👮 Polizist-Karte „Stutzen-Schuss" trifft ${target.name}!`, 'event');
+      }
+      consumeCardEffect();
+      break;
+    }
+    case 'quickgrab': {
+      const target = aiChooseQuickgrabTarget();
+      if (target) {
+        capture(target, game.figures.gendarm[0]);
+        checkWin();
+      }
+      consumeCardEffect();
+      break;
+    }
+    case 'hide':
+    case 'disguise': {
+      // KI-Räuber: wende auf gefährdetsten Räuber an (näher zu Polizist)
+      let bestS = null, bestRisk = -1;
+      game.figures.saeumer.forEach(s => {
+        if (s.captured || s.at.q === undefined) return;
+        const d = Math.min(...game.figures.gendarm.map(g => g.at.q !== undefined ? hexDistance(g.at, s.at) : 99));
+        if (10 - d > bestRisk) { bestRisk = 10 - d; bestS = s; }
+      });
+      if (bestS) {
+        if (card.type === 'hide') bestS.hidden = 1;
+        else bestS.disguised = 1;
+        addLog(`🤖 Räuber spielt ${card.title} auf ${bestS.name}.`, 'saeumer');
+      }
+      consumeCardEffect();
+      break;
+    }
+    case 'bang': {
+      // Polizist auf Brett finden, ihn zurückwerfen
+      const policeman = game.figures.gendarm.find(g => !g.isDog && g.at.q !== undefined);
+      if (policeman) {
+        const candidates = getNeighbors(policeman.at.q, policeman.at.r).filter(n =>
+          isInBoard(n.q, n.r) && !isLocked(n.q, n.r) && n.r < policeman.at.r
+        );
+        if (candidates.length > 0) {
+          policeman.at = { q: candidates[0].q, r: candidates[0].r, type: null };
+        }
+        addLog(`🥷 Räuber-Karte „Knall": Polizist weicht zurück.`, 'event');
+      }
+      consumeCardEffect();
+      break;
+    }
+    case 'secret_path': {
+      // Auf Räuber mit Beute, am weitesten oben
+      const candidates = game.figures.saeumer.filter(s => !s.captured && s.at.q !== undefined);
+      candidates.sort((a, b) => {
+        if (a.carrying && !b.carrying) return -1;
+        if (!a.carrying && b.carrying) return 1;
+        return a.at.r - b.at.r;
+      });
+      const s = candidates[0];
+      if (s) {
+        for (let i = 0; i < 2; i++) {
+          const cands = getNeighbors(s.at.q, s.at.r).filter(n =>
+            isInBoard(n.q, n.r) && !isLocked(n.q, n.r) && n.r < s.at.r &&
+            canEnterHex(n.q, n.r, 'saeumer')
+          );
+          if (cands.length > 0) {
+            s.at = { q: cands[0].q, r: cands[0].r, type: null };
+            tryPickupGood(s);
+          }
+        }
+        addLog(`🥷 Räuber-Karte „Geheimpfad" auf ${s.name}.`, 'event');
+      }
+      consumeCardEffect();
+      break;
+    }
+    default:
+      consumeCardEffect();
+  }
+}
+
+function aiChooseSnareTarget() {
+  // Wähle Hex auf dem Pfad zwischen Polizist und nähestem Räuber
+  let nearestRaeuber = null;
+  let minDist = 99;
+  game.figures.saeumer.forEach(s => {
+    if (s.captured || s.at.q === undefined) return;
+    const d = Math.min(...game.figures.gendarm.map(g =>
+      g.at.q !== undefined ? hexDistance(g.at, s.at) : 99
+    ));
+    if (d < minDist) { minDist = d; nearestRaeuber = s; }
+  });
+  if (nearestRaeuber) {
+    // Hex direkt vor Räuber Richtung Madrisa
+    const cands = getNeighbors(nearestRaeuber.at.q, nearestRaeuber.at.r).filter(n =>
+      isInBoard(n.q, n.r) && !isLocked(n.q, n.r) && !getTrap(n.q, n.r) && n.r < nearestRaeuber.at.r
+    );
+    if (cands.length > 0) return cands[0];
+  }
+  // Fallback: zufälliges Hex auf der Mittelreihe
+  const all = Object.values(game.board).filter(t =>
+    !isLocked(t.q, t.r) && !getTrap(t.q, t.r) && t.type !== 'guggelstein' && Math.abs(t.r) <= 1
+  );
+  return all.length > 0 ? all[Math.floor(Math.random() * all.length)] : null;
+}
+
+function aiChooseShotTarget() {
+  // Räuber in Reichweite eines Polizisten
+  for (const s of game.figures.saeumer) {
+    if (s.captured || s.at.q === undefined) continue;
+    const inRange = game.figures.gendarm.some(g => !g.isDog && g.at.q !== undefined && hexDistance(g.at, s.at) <= 3);
+    if (inRange) return s;
+  }
+  return null;
+}
+
+function aiChooseQuickgrabTarget() {
+  for (const s of game.figures.saeumer) {
+    if (s.captured || s.at.q === undefined) continue;
+    const adjacent = game.figures.gendarm.some(g => !g.isDog && g.at.q !== undefined && hexDistance(g.at, s.at) === 1);
+    if (adjacent) return s;
+  }
+  return null;
+}
+
+// ---- Helpers ----
+function darkenColor(hex, factor) {
+  const r = parseInt(hex.substr(1, 2), 16);
+  const g = parseInt(hex.substr(3, 2), 16);
+  const b = parseInt(hex.substr(5, 2), 16);
+  const dr = Math.max(0, Math.round(r * factor));
+  const dg = Math.max(0, Math.round(g * factor));
+  const db = Math.max(0, Math.round(b * factor));
+  return `#${dr.toString(16).padStart(2, '0')}${dg.toString(16).padStart(2, '0')}${db.toString(16).padStart(2, '0')}`;
+}
+
+function isInBoard(q, r) {
+  return Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r)) <= HEX_RADIUS;
+}
+
+function axialToPixel(q, r) {
+  const x = HEX_SIZE * Math.sqrt(3) * (q + r / 2);
+  const y = HEX_SIZE * 1.5 * r;
+  return { x: CENTER_X + x, y: CENTER_Y + y };
+}
+
+function getNeighbors(q, r) {
+  return AXIAL_DIRS.map(d => ({ q: q + d.q, r: r + d.r }));
+}
+
+function hexEqual(a, b) {
+  return a.q === b.q && a.r === b.r;
+}
+
+function isLocked(q, r) {
+  return game.lockedHexes.some(h => h.q === q && h.r === r);
+}
+
+function getLock(q, r) {
+  return game.lockedHexes.find(h => h.q === q && h.r === r);
+}
+
+function getTrap(q, r) {
+  return game.traps.find(t => t.hex.q === q && t.hex.r === r);
+}
+
+function hexDistance(a, b) {
+  if (!isInBoard(a.q, a.r) || !isInBoard(b.q, b.r)) return 99;
+  return (Math.abs(a.q - b.q) + Math.abs(a.q + a.r - b.q - b.r) + Math.abs(a.r - b.r)) / 2;
+}
+
+function buildDeck(template) {
+  const deck = [];
+  template.forEach(card => {
+    for (let i = 0; i < card.count; i++) {
+      deck.push({ title: card.title, effect: card.effect, type: card.type, id: card.type + '_' + i });
+    }
+  });
+  return deck;
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function generateBoard() {
+  // 36 Tiles + 1 Güggelstein = 37
+  const pool = [
+    ...Array(12).fill('forest'),
+    ...Array(9).fill('rock'),
+    ...Array(6).fill('snow'),
+    ...Array(5).fill('ravine'),
+    ...Array(4).fill('hut')
+  ];
+  const shuffled = shuffle(pool);
+  const board = {};
+  let idx = 0;
+  for (let q = -HEX_RADIUS; q <= HEX_RADIUS; q++) {
+    for (let r = -HEX_RADIUS; r <= HEX_RADIUS; r++) {
+      if (!isInBoard(q, r)) continue;
+      if (q === 0 && r === 0) {
+        board[`${q},${r}`] = { q, r, type: 'guggelstein', revealed: true };
+      } else {
+        board[`${q},${r}`] = { q, r, type: shuffled[idx] || 'forest', revealed: true };
+        idx++;
+      }
+    }
+  }
+  return board;
+}
+
+function initGame() {
+  game = {
+    board: generateBoard(),
+    figures: {
+      saeumer: [
+        { id: 'S1', name: 'Träger',       at: { ...PANY_HEX }, carrying: 'GD1', captured: false, hidden: 0, disguised: 0, trapped: 0 },
+        { id: 'S2', name: 'Kundschafter', at: { ...PANY_HEX }, carrying: 'GD2', captured: false, hidden: 0, disguised: 0, trapped: 0 },
+        { id: 'S3', name: 'Bergführer',   at: { ...PANY_HEX }, carrying: 'GD3', captured: false, hidden: 0, disguised: 0, trapped: 0 }
+      ],
+      gendarm: [
+        { id: 'G1', name: 'Polizist',  at: { ...MADRISA_HEX } },
+        { id: 'D1', name: 'Spürhund', at: { ...MADRISA_HEX }, isDog: true }
+      ]
+    },
+    smuggleGoods: [
+      { id: 'GD1', at: { ...PANY_HEX }, delivered: false, carriedBy: 'S1' },
+      { id: 'GD2', at: { ...PANY_HEX }, delivered: false, carriedBy: 'S2' },
+      { id: 'GD3', at: { ...PANY_HEX }, delivered: false, carriedBy: 'S3' }
+    ],
+    decks: {
+      saeumer: shuffle(buildDeck(SAEUMER_DECK_TEMPLATE)),
+      gendarm: shuffle(buildDeck(GENDARM_DECK_TEMPLATE)),
+      tile: shuffle(buildDeck(TILE_DECK_TEMPLATE))
+    },
+    activePlayer: 'saeumer',
+    actionsLeft: 1,
+    round: 1,
+    turnsSinceWeather: 0,
+    selectedFigure: null,
+    movableHexes: [],
+    lockedHexes: [],
+    traps: [],
+    weather: '–',
+    lastCard: null,
+    log: [],
+    lastTurnEvents: [],
+    gameOver: false,
+    pendingCardAction: null,
+    skipNextGendarmAction: false
+  };
+  addLog('Die Räuber schultern in Pany ihre Lasten. Am Madrisa-Joch wartet der Polizist mit Hund.', 'event');
+}
+
+// ---- Position für Figuren ----
+function getFigurePixel(at, idx) {
+  if (at.type === 'pany') {
+    const layouts = [
+      { x: 370, y: 530 },
+      { x: 430, y: 530 },
+      { x: 400, y: 565 }
+    ];
+    return layouts[idx] || PANY_POS;
+  }
+  if (at.type === 'madrisa') {
+    const layouts = [
+      { x: 380, y: 45 },
+      { x: 420, y: 45 },
+      { x: 400, y: 80 }
+    ];
+    return layouts[idx] || MADRISA_POS;
+  }
+  if (at.type === 'verlies') {
+    const layouts = [
+      { x: 740, y: 530 },
+      { x: 780, y: 530 },
+      { x: 760, y: 565 }
+    ];
+    return layouts[idx] || VERLIES_POS;
+  }
+  return axialToPixel(at.q, at.r);
+}
+
+function getFigureIdx(figure) {
+  let idx = game.figures.saeumer.indexOf(figure);
+  if (idx >= 0) return idx;
+  idx = game.figures.gendarm.indexOf(figure);
+  return idx;
+}
+
+function findFigureAt(q, r, player) {
+  const figures = game.figures[player];
+  return figures.find(f => f.at.q === q && f.at.r === r && !f.captured);
+}
+
+function isHexOccupiedByGendarm(q, r) {
+  return game.figures.gendarm.some(g => g.at.q === q && g.at.r === r);
+}
+
+// Sichtbarkeit für Polizist (Stealth-Mechanik mit Wetter-Overrides)
+function isSaeumerVisibleToPolice(s) {
+  if (s.captured) return true; // im Verlies sichtbar
+  if (s.at.type) return true;  // Pany / Madrisa / Verlies
+  if (!isOnBoardHex(s.at)) return false;
+  // Mondlicht: alle sichtbar
+  if ((game.moonlightActive || 0) > 0) return true;
+  // Schneesturm: alle unsichtbar (auch auf Felsen)
+  if ((game.blizzardActive || 0) > 0) return false;
+  // Adler-markiert: sichtbar
+  if ((s.markedByEagle || 0) > 0) return true;
+  // Sternschnuppen auf Mittelreihe: sichtbar
+  if ((s.starlit || 0) > 0 && s.at.r === 0) return true;
+  // Standard: nur auf Felsen sichtbar
+  const tile = game.board[`${s.at.q},${s.at.r}`];
+  if (tile && tile.type === 'rock') return true;
+  return false;
+}
+
+// ---- Rendering ----
+function renderBoard() {
+  const svg = document.getElementById('board');
+  svg.innerHTML = '';
+
+  // Hintergrund-Bild (Aquarell-Szene) — Datei: background.jpg im selben Ordner
+  const bgImg = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+  bgImg.setAttribute('x', 0);
+  bgImg.setAttribute('y', 0);
+  bgImg.setAttribute('width', SVG_W);
+  bgImg.setAttribute('height', SVG_H);
+  bgImg.setAttribute('href', 'background.jpg');
+  bgImg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+  bgImg.setAttribute('opacity', '0.85');
+  bgImg.setAttribute('pointer-events', 'none');
+  svg.appendChild(bgImg);
+
+  // Leichter cremefarbener Schleier für Lesbarkeit der Tiles
+  const bgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bgOverlay.setAttribute('x', 0);
+  bgOverlay.setAttribute('y', 0);
+  bgOverlay.setAttribute('width', SVG_W);
+  bgOverlay.setAttribute('height', SVG_H);
+  bgOverlay.setAttribute('fill', '#fdf7e8');
+  bgOverlay.setAttribute('opacity', '0.15');
+  bgOverlay.setAttribute('pointer-events', 'none');
+  svg.appendChild(bgOverlay);
+
+  // Spezial-Tiles
+  drawSpecialHex(svg, MADRISA_POS.x, MADRISA_POS.y, 'madrisa', 'MADRISA-JOCH');
+  drawSpecialHex(svg, PANY_POS.x, PANY_POS.y, 'pany', 'PANY');
+  drawSpecialHex(svg, VERLIES_POS.x, VERLIES_POS.y, 'verlies', 'VERLIES');
+
+  // Brett-Hexagons
+  Object.values(game.board).forEach(tile => {
+    const { x, y } = axialToPixel(tile.q, tile.r);
+    drawHex(svg, x, y, tile);
+  });
+
+  // Movable highlights
+  game.movableHexes.forEach(h => {
+    if (h.q !== undefined && h.q > -50) {
+      const hexEl = svg.querySelector(`.hex[data-q="${h.q}"][data-r="${h.r}"]`);
+      if (hexEl) hexEl.classList.add('movable');
+    }
+  });
+
+  // Schmuggelgut sichtbar — Pany oder auf Brett-Hex
+  game.smuggleGoods.forEach((good, i) => {
+    if (good.delivered || good.carriedBy) return;
+    let pos = null;
+    if (good.at.type === 'pany') {
+      pos = { x: PANY_POS.x - 30 + i * 16, y: PANY_POS.y - 38 };
+    } else if (good.at.q !== undefined && good.at.q > -50) {
+      const p = axialToPixel(good.at.q, good.at.r);
+      pos = { x: p.x + 18, y: p.y + 18 };
+    }
+    if (!pos) return;
+    drawMoneyBag(svg, pos.x, pos.y, 18);
+  });
+
+  // Schmuggelgüter im Madrisa-Joch zeigen
+  const deliveredCount = game.smuggleGoods.filter(g => g.delivered).length;
+  for (let i = 0; i < deliveredCount; i++) {
+    drawMoneyBag(svg, MADRISA_POS.x - 24 + i * 18, MADRISA_POS.y + 50, 18);
+  }
+
+  // Räuber — Stealth-Mechanik: für Polizisten nur sichtbar auf Felsen-Hex oder Spezial-Hex
+  const isGendarmActive = getViewerRole() === 'gendarm';
+  const VERLIES_LAYOUTS = [
+    { x: 740, y: 530 },
+    { x: 780, y: 530 },
+    { x: 760, y: 565 }
+  ];
+
+  game.figures.saeumer.forEach((s, idx) => {
+    if (s.captured) return;
+    if (s.at.type === 'verlies') return;  // wird im Verlies-Block gerendert
+
+    // Sichtbarkeitsprüfung beim Polizist-Zug (mit Wetter-Overrides)
+    if (isGendarmActive && !isSaeumerVisibleToPolice(s)) return;
+
+    const pos = getFigurePixel(s.at, idx);
+    s._renderPos = pos;
+    drawFigure(svg, pos.x, pos.y, '#b85541', '🥷', s.hidden > 0 ? 0.4 : 1, s, 'schmuggler.png');
+    if (s.carrying) {
+      drawMoneyBag(svg, pos.x + 16, pos.y - 16, 14);
+    }
+  });
+
+  // Alle Räuber im Verlies (gefangen ODER befreit aber noch im Verlies) — gestapelt mit eigenem Slot
+  let prisonIdx = 0;
+  game.figures.saeumer.forEach((s) => {
+    if (!s.captured && s.at.type !== 'verlies') return;
+    const pos = VERLIES_LAYOUTS[Math.min(prisonIdx, 2)] || VERLIES_POS;
+    s._renderPos = pos;
+    drawFigure(svg, pos.x, pos.y, '#b85541', '🥷', s.captured ? 0.55 : 1, s, 'schmuggler.png');
+    if (s.carrying) {
+      drawMoneyBag(svg, pos.x + 16, pos.y - 16, 14);
+    }
+    prisonIdx++;
+  });
+
+  // Polizist + Hund
+  game.figures.gendarm.forEach((g, idx) => {
+    const pos = getFigurePixel(g.at, idx);
+    if (g.isDog) {
+      drawFigure(svg, pos.x, pos.y, '#3d2817', '🐕', 1, g, 'hund.png');
+    } else {
+      drawFigure(svg, pos.x, pos.y, '#1e3a5f', '👮', 1, g, 'gendarm.png');
+    }
+  });
+
+  // Selected figure highlight
+  if (game.selectedFigure) {
+    const f = game.selectedFigure;
+    const idx = getFigureIdx(f);
+    const pos = getFigurePixel(f.at, idx);
+    const selRing = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    selRing.setAttribute('cx', pos.x);
+    selRing.setAttribute('cy', pos.y);
+    selRing.setAttribute('r', 22);
+    selRing.setAttribute('fill', 'none');
+    selRing.setAttribute('stroke', '#d4a017');
+    selRing.setAttribute('stroke-width', 3);
+    selRing.setAttribute('stroke-dasharray', '4 4');
+    selRing.setAttribute('pointer-events', 'none');
+    svg.appendChild(selRing);
+  }
+}
+
+function drawSpecialHex(svg, cx, cy, type, label) {
+  const hex = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  const points = hexPoints(cx, cy, 38);
+  hex.setAttribute('points', points);
+  hex.setAttribute('fill', TILE_COLORS[type]);
+  hex.setAttribute('stroke', '#5c3a1e');
+  hex.setAttribute('stroke-width', 2.5);
+  svg.appendChild(hex);
+
+  // Verlies-Hintergrund-Bild (wenn Datei verfügbar)
+  if (type === 'verlies') {
+    const clipId = 'verliesclip-' + Math.round(cx) + '-' + Math.round(cy);
+    let defs = svg.querySelector('defs');
+    if (!defs) {
+      defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      svg.insertBefore(defs, svg.firstChild);
+    }
+    const cp = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+    cp.setAttribute('id', clipId);
+    const cpc = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    cpc.setAttribute('points', hexPoints(cx, cy, 36));
+    cp.appendChild(cpc);
+    defs.appendChild(cp);
+
+    const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+    img.setAttribute('x', cx - 38);
+    img.setAttribute('y', cy - 38);
+    img.setAttribute('width', 76);
+    img.setAttribute('height', 76);
+    img.setAttribute('href', 'verlies.png');
+    img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    img.setAttribute('clip-path', 'url(#' + clipId + ')');
+    img.setAttribute('pointer-events', 'none');
+    svg.appendChild(img);
+  }
+
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('x', cx);
+  text.setAttribute('y', cy + (type === 'madrisa' ? -52 : 56));
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('font-size', '12');
+  text.setAttribute('font-weight', 'bold');
+  text.setAttribute('fill', '#5c3a1e');
+  text.textContent = label;
+  svg.appendChild(text);
+}
+
+function drawHex(svg, x, y, tile) {
+  const hex = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  const points = hexPoints(x, y, HEX_SIZE);
+  const baseColor = TILE_COLORS[tile.type];
+  const lock = getLock(tile.q, tile.r);
+  const trap = getTrap(tile.q, tile.r);
+
+  hex.setAttribute('points', points);
+  hex.setAttribute('fill', baseColor);
+
+  // Effekt-Hervorhebung in dunklerer Tile-Farbe
+  if (lock) {
+    hex.setAttribute('stroke', darkenColor(baseColor, 0.4));
+    hex.setAttribute('stroke-width', 5);
+  } else if (trap) {
+    hex.setAttribute('stroke', darkenColor(baseColor, 0.4));
+    hex.setAttribute('stroke-width', 5);
+    hex.setAttribute('stroke-dasharray', '5 3');
+  } else {
+    hex.setAttribute('stroke', '#7a5a3a');
+    hex.setAttribute('stroke-width', 1);
+  }
+
+  hex.setAttribute('class', 'hex');
+  hex.setAttribute('data-q', tile.q);
+  hex.setAttribute('data-r', tile.r);
+  hex.addEventListener('click', () => onHexClick(tile.q, tile.r));
+  svg.appendChild(hex);
+
+  if (tile.type === 'guggelstein') {
+    // Versuche Foto als Hintergrund zu laden, mit hexagonalem ClipPath.
+    // Falls die Datei "gueggelstein.png" nicht existiert, bleibt der rosa Hex sichtbar.
+    const clipId = 'gueggelclip-' + tile.q + '-' + tile.r;
+    let defs = svg.querySelector('defs');
+    if (!defs) {
+      defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      svg.insertBefore(defs, svg.firstChild);
+    }
+    const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+    clipPath.setAttribute('id', clipId);
+    const clipPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    clipPoly.setAttribute('points', hexPoints(x, y, HEX_SIZE));
+    clipPath.appendChild(clipPoly);
+    defs.appendChild(clipPath);
+
+    const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+    img.setAttribute('x', x - HEX_SIZE);
+    img.setAttribute('y', y - HEX_SIZE);
+    img.setAttribute('width', HEX_SIZE * 2);
+    img.setAttribute('height', HEX_SIZE * 2);
+    img.setAttribute('href', 'gueggelstein.png');
+    img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    img.setAttribute('clip-path', 'url(#' + clipId + ')');
+    img.setAttribute('pointer-events', 'none');
+    svg.appendChild(img);
+
+  } else {
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', x);
+    label.setAttribute('y', y + 4);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('font-size', '10');
+    // Helle Tiles: dunkler Text, dunkle Tiles: cremefarbener Text
+    const lightTiles = ['snow', 'rock', 'hut', 'pany', 'guggelstein'];
+    label.setAttribute('fill', lightTiles.includes(tile.type) ? '#5c3a1e' : '#fdf7e8');
+    label.setAttribute('opacity', '0.6');
+    label.setAttribute('pointer-events', 'none');
+    label.textContent = TILE_LABELS[tile.type];
+    svg.appendChild(label);
+  }
+
+  // Effekt-Symbol + Restzeit mittig
+  if (lock) {
+    const sym = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    sym.setAttribute('x', x);
+    sym.setAttribute('y', y - 12);
+    sym.setAttribute('text-anchor', 'middle');
+    sym.setAttribute('font-size', '16');
+    sym.setAttribute('font-weight', 'bold');
+    sym.setAttribute('fill', darkenColor(baseColor, 0.3));
+    sym.setAttribute('pointer-events', 'none');
+    sym.textContent = '⊘';
+    svg.appendChild(sym);
+    if (lock.untilRound < 999) {
+      const remaining = Math.max(0, lock.untilRound - game.round);
+      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      txt.setAttribute('x', x);
+      txt.setAttribute('y', y + 22);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('font-size', '11');
+      txt.setAttribute('font-weight', 'bold');
+      txt.setAttribute('fill', darkenColor(baseColor, 0.2));
+      txt.setAttribute('pointer-events', 'none');
+      txt.textContent = `noch ${remaining}`;
+      svg.appendChild(txt);
+    }
+  } else if (trap) {
+    const sym = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    sym.setAttribute('x', x);
+    sym.setAttribute('y', y - 12);
+    sym.setAttribute('text-anchor', 'middle');
+    sym.setAttribute('font-size', '14');
+    sym.setAttribute('font-weight', 'bold');
+    sym.setAttribute('fill', darkenColor(baseColor, 0.3));
+    sym.setAttribute('pointer-events', 'none');
+    sym.textContent = '✕';
+    svg.appendChild(sym);
+    if (trap.untilRound) {
+      const remaining = Math.max(0, trap.untilRound - game.round);
+      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      txt.setAttribute('x', x);
+      txt.setAttribute('y', y + 22);
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('font-size', '11');
+      txt.setAttribute('font-weight', 'bold');
+      txt.setAttribute('fill', darkenColor(baseColor, 0.2));
+      txt.setAttribute('pointer-events', 'none');
+      txt.textContent = `noch ${remaining}`;
+      svg.appendChild(txt);
+    }
+  }
+}
+
+function hexPoints(cx, cy, r) {
+  const points = [];
+  for (let i = 0; i < 6; i++) {
+    const angle = Math.PI / 3 * i - Math.PI / 2;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  return points.join(' ');
+}
+
+function drawMoneyBag(svg, x, y, size) {
+  const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  t.setAttribute('x', x);
+  t.setAttribute('y', y);
+  t.setAttribute('font-size', size || 16);
+  t.setAttribute('text-anchor', 'middle');
+  t.setAttribute('dominant-baseline', 'central');
+  t.setAttribute('class', 'smuggle-marker');
+  t.textContent = '💰';
+  svg.appendChild(t);
+}
+
+function drawFigure(svg, x, y, color, emoji, opacity, figure, imagePath) {
+  // Farbiger Hintergrund-Kreis als Team-Marker
+  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  circle.setAttribute('cx', x);
+  circle.setAttribute('cy', y);
+  circle.setAttribute('r', 17);
+  circle.setAttribute('fill', color);
+  circle.setAttribute('stroke', '#fdf7e8');
+  circle.setAttribute('stroke-width', 2.5);
+  circle.setAttribute('opacity', opacity);
+  circle.setAttribute('class', 'draggable');
+  circle.setAttribute('data-figure-id', figure.id);
+  circle.addEventListener('mousedown', (e) => onFigureMouseDown(figure, e));
+  circle.addEventListener('touchstart', (e) => { onFigureMouseDown(figure, e.touches[0], e); }, { passive: false });
+  svg.appendChild(circle);
+
+  // Emoji-Symbol (immer als Fallback)
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('x', x);
+  text.setAttribute('y', y + 1);
+  text.setAttribute('class', 'figure-text');
+  text.setAttribute('font-size', '20');
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('dominant-baseline', 'central');
+  text.setAttribute('opacity', opacity);
+  text.textContent = emoji;
+  svg.appendChild(text);
+
+  // Bild über das Emoji legen — nur wenn Datei verfügbar (vorher per preload geprüft)
+  if (imagePath && figureImageCache[imagePath] === true) {
+    const clipId = 'figimg-' + figure.id + '-' + Math.round(x) + '-' + Math.round(y);
+    let defs = svg.querySelector('defs');
+    if (!defs) {
+      defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      svg.insertBefore(defs, svg.firstChild);
+    }
+    const cp = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+    cp.setAttribute('id', clipId);
+    const cpc = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    cpc.setAttribute('cx', x);
+    cpc.setAttribute('cy', y);
+    cpc.setAttribute('r', 15.5);
+    cp.appendChild(cpc);
+    defs.appendChild(cp);
+
+    const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+    img.setAttribute('x', x - 16);
+    img.setAttribute('y', y - 16);
+    img.setAttribute('width', 32);
+    img.setAttribute('height', 32);
+    img.setAttribute('href', imagePath);
+    img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    img.setAttribute('clip-path', 'url(#' + clipId + ')');
+    img.setAttribute('opacity', opacity);
+    img.setAttribute('pointer-events', 'none');
+    svg.appendChild(img);
+  }
+}
+
+function renderStatus() {
+  const delivered = game.smuggleGoods.filter(g => g.delivered).length;
+  document.getElementById('stat-delivered').textContent = `${delivered} / 3`;
+  document.getElementById('stat-free').textContent = `${game.figures.saeumer.filter(s => !s.captured).length} / 3`;
+  document.getElementById('stat-prison').textContent = `${game.figures.saeumer.filter(s => s.captured).length}`;
+  document.getElementById('stat-deck').textContent = `${game.decks.tile.length}`;
+  document.getElementById('stat-weather').textContent = game.weather;
+  document.getElementById('stat-next-weather').textContent = `in ${TURNS_BETWEEN_WEATHER - game.turnsSinceWeather} Zügen`;
+  // Im MP nur eigenes Deck, sonst aktiver Spieler
+  const deckOwner = (net.mode === 'hotseat') ? game.activePlayer : net.myRole;
+  document.getElementById('stat-player-deck').textContent = `${game.decks[deckOwner].length} Karten`;
+  document.getElementById('round-display').textContent = `Zug ${game.round}`;
+  document.getElementById('actions-left').textContent = (game.actionsLeft > 0) ? 'verfügbar' : 'verbraucht';
+
+  const badge = document.getElementById('active-player');
+  let badgeText = (game.activePlayer === 'saeumer') ? 'Räuber am Zug' : 'Polizist am Zug';
+  if (net.mode !== 'hotseat' && !isMyTurn()) {
+    badgeText += ' (warte ...)';
+  }
+  badge.textContent = badgeText;
+  badge.className = 'player-badge ' + game.activePlayer;
+
+  // Buttons im MP nur aktiv, wenn mein Zug
+  const canAct = isMyTurn() && game.actionsLeft > 0 && !game.pendingCardAction;
+  document.getElementById('draw-card-btn').disabled = !canAct;
+  document.getElementById('end-turn-btn').disabled = !isMyTurn();
+  // Abbrechen-Button nur sichtbar wenn Karten-Ziel-Auswahl aktiv
+  const cancelBtn = document.getElementById('cancel-card-btn');
+  if (cancelBtn) cancelBtn.hidden = !game.pendingCardAction;
+
+  // Action-Hint ändern je nach Status
+  const hint = document.getElementById('action-hint');
+  if (hint) {
+    if (game.pendingCardAction) {
+      hint.innerHTML = '<b style="color:#b85541;">Karte aktiv:</b> klicke ein gültiges Ziel — oder nutze "Aktion abbrechen".';
+    } else {
+      hint.innerHTML = 'Pro Zug: eine Figur per Drag-and-Drop bewegen <b>oder</b> eine Ereigniskarte ziehen.';
+    }
+  }
+
+  showNetStatus();
+}
+
+function cancelCardAction() {
+  if (!game.pendingCardAction) return;
+  addLog('Karten-Aktion abgebrochen — Karte verfällt.', '');
+  game.pendingCardAction = null;
+  game.actionsLeft = 0;
+  renderAll();
+  setTimeout(() => endActionsPhase(), 300);
+}
+
+function renderLastCard() {
+  const div = document.getElementById('last-card');
+  if (!game.lastCard) {
+    div.innerHTML = '<div style="color: #8a6f47; font-style: italic;">Noch keine Karte gespielt.</div>';
+    return;
+  }
+  const c = game.lastCard;
+  div.innerHTML = `<div style="font-weight: bold; color: ${c.player === 'saeumer' ? '#b85541' : '#1e3a5f'}; font-size: 13px;">${c.title}</div><div style="font-style: italic; color: #8a6f47; margin-top: 2px;">${c.effect}</div><div style="font-size: 10px; color: #8a6f47; margin-top: 3px;">— gezogen vom ${c.player === 'saeumer' ? 'Räuber' : 'Polizist'}</div>`;
+}
+
+function addLog(text, cls) {
+  game.log.push({ text, cls: cls || '' });
+  // Wichtige Events (cls='event') werden auch im Spielerwechsel-Screen angezeigt
+  if (cls === 'event') {
+    if (!game.lastTurnEvents) game.lastTurnEvents = [];
+    game.lastTurnEvents.push(text);
+  }
+  const logDiv = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + (cls || '');
+  entry.textContent = text;
+  logDiv.appendChild(entry);
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function renderAll() {
+  renderBoard();
+  renderStatus();
+  renderLastCard();
+}
+
+// --- Drag-and-Drop ---
+function onFigureMouseDown(figure, e, originalEvent) {
+  if (game.gameOver) return;
+  if (figure.captured) return;
+  if (!isMyTurn()) return;
+
+  // Bei Karten-Ziel-Auswahl: Klick auf Figur an Hex-Handler weiterleiten
+  if (game.pendingCardAction) {
+    if (originalEvent) originalEvent.preventDefault();
+    else e.preventDefault?.();
+    if (figure.at.q !== undefined && figure.at.q > -50) {
+      handleCardTarget(figure.at.q, figure.at.r);
+    }
+    return;
+  }
+
+  if (game.actionsLeft <= 0) return;
+
+  const isMine = (game.activePlayer === 'saeumer' && game.figures.saeumer.includes(figure)) ||
+                 (game.activePlayer === 'gendarm' && game.figures.gendarm.includes(figure));
+  if (!isMine) {
+    addLog(`Diese Figur gehört nicht dir.`, '');
+    return;
+  }
+  if (figure.trapped > 0) {
+    addLog(`${figure.name} ist gefesselt — bewegungsunfähig.`, '');
+    return;
+  }
+
+  if (originalEvent) originalEvent.preventDefault();
+  else e.preventDefault?.();
+
+  selectFigureForDrag(figure);
+
+  dragState = {
+    figure: figure,
+    startPos: figure._renderPos || getFigurePixel(figure.at, getFigureIdx(figure)),
+    isDragging: true,
+    targetHex: null
+  };
+
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragEnd);
+  document.addEventListener('touchmove', onTouchMove, { passive: false });
+  document.addEventListener('touchend', onTouchEnd);
+}
+
+function onTouchMove(e) {
+  if (e.touches.length > 0) {
+    e.preventDefault();
+    onDragMove(e.touches[0]);
+  }
+}
+function onTouchEnd(e) {
+  if (e.changedTouches.length > 0) onDragEnd(e.changedTouches[0]);
+}
+
+function onDragMove(e) {
+  if (!dragState) return;
+  const svg = document.getElementById('board');
+  const pt = svgPointFromEvent(svg, e);
+
+  drawDragOverlay(dragState.startPos, pt);
+
+  const targetHex = findHexAtPixel(pt.x, pt.y);
+  dragState.targetHex = targetHex;
+
+  document.querySelectorAll('.hex.movable-hover').forEach(el => el.classList.remove('movable-hover'));
+  if (targetHex && targetHex.q !== undefined && targetHex.q > -50) {
+    const isMovable = game.movableHexes.some(h => h.q === targetHex.q && h.r === targetHex.r);
+    if (isMovable) {
+      const hexEl = svg.querySelector(`.hex[data-q="${targetHex.q}"][data-r="${targetHex.r}"]`);
+      if (hexEl) hexEl.classList.add('movable-hover');
+    }
+  }
+}
+
+function onDragEnd(e) {
+  if (!dragState) return;
+
+  document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup', onDragEnd);
+  document.removeEventListener('touchmove', onTouchMove);
+  document.removeEventListener('touchend', onTouchEnd);
+
+  const svg = document.getElementById('board');
+  const pt = svgPointFromEvent(svg, e);
+  const targetHex = findHexAtPixel(pt.x, pt.y);
+
+  removeDragOverlay();
+  document.querySelectorAll('.hex.movable-hover').forEach(el => el.classList.remove('movable-hover'));
+
+  if (targetHex) {
+    const movable = game.movableHexes.some(h => h.q === targetHex.q && h.r === targetHex.r);
+    if (movable) {
+      const targetForMove = (targetHex.type) ? { ...targetHex } : { q: targetHex.q, r: targetHex.r, type: null };
+      moveFigure(dragState.figure, targetForMove);
+    } else {
+      addLog('Ziel nicht erreichbar — Zug abgebrochen.', '');
+    }
+  }
+
+  dragState = null;
+  game.selectedFigure = null;
+  game.movableHexes = [];
+  renderAll();
+}
+
+function svgPointFromEvent(svg, e) {
+  const rect = svg.getBoundingClientRect();
+  const scaleX = SVG_W / rect.width;
+  const scaleY = SVG_H / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
+  };
+}
+
+function findHexAtPixel(x, y) {
+  let nearest = null;
+  let minDist = HEX_SIZE + 5;
+
+  Object.values(game.board).forEach(tile => {
+    const p = axialToPixel(tile.q, tile.r);
+    const d = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2);
+    if (d < minDist) {
+      minDist = d;
+      nearest = { q: tile.q, r: tile.r, type: null };
+    }
+  });
+
+  const specials = [
+    { pos: PANY_POS, hex: { ...PANY_HEX } },
+    { pos: MADRISA_POS, hex: { ...MADRISA_HEX } },
+    { pos: VERLIES_POS, hex: { ...VERLIES_HEX } }
+  ];
+  specials.forEach(s => {
+    const d = Math.sqrt((s.pos.x - x) ** 2 + (s.pos.y - y) ** 2);
+    if (d < 50 && d < minDist) {
+      minDist = d;
+      nearest = { ...s.hex };
+    }
+  });
+
+  return nearest;
+}
+
+function drawDragOverlay(from, to) {
+  const svg = document.getElementById('board');
+  let line = svg.querySelector('#drag-line');
+  if (!line) {
+    line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('id', 'drag-line');
+    line.setAttribute('stroke', '#d4a017');
+    line.setAttribute('stroke-width', 4);
+    line.setAttribute('stroke-dasharray', '8 5');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('opacity', '0.85');
+    line.setAttribute('pointer-events', 'none');
+    svg.appendChild(line);
+  }
+  line.setAttribute('x1', from.x);
+  line.setAttribute('y1', from.y);
+  line.setAttribute('x2', to.x);
+  line.setAttribute('y2', to.y);
+
+  let arrow = svg.querySelector('#drag-arrow');
+  if (!arrow) {
+    arrow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    arrow.setAttribute('id', 'drag-arrow');
+    arrow.setAttribute('r', 6);
+    arrow.setAttribute('fill', '#d4a017');
+    arrow.setAttribute('opacity', '0.9');
+    arrow.setAttribute('pointer-events', 'none');
+    svg.appendChild(arrow);
+  }
+  arrow.setAttribute('cx', to.x);
+  arrow.setAttribute('cy', to.y);
+}
+
+function removeDragOverlay() {
+  const svg = document.getElementById('board');
+  const line = svg.querySelector('#drag-line');
+  const arrow = svg.querySelector('#drag-arrow');
+  if (line) line.remove();
+  if (arrow) arrow.remove();
+}
+
+function selectFigureForDrag(figure) {
+  game.selectedFigure = figure;
+  computeMovableHexes(figure);
+  renderAll();
+}
+
+function computeMovableHexes(figure) {
+  game.movableHexes = [];
+  if (game.actionsLeft <= 0) return;
+  if (figure.trapped > 0) return;
+
+  const at = figure.at;
+
+  // Aus Pany / Madrisa / Verlies
+  if (at.type) {
+    // Räuber-Eintrittsfeld: die untersten 4 Hexes (r = 3, q von -3 bis 0)
+    const SAEUMER_ENTRY = [
+      { q: -3, r: 3 }, { q: -2, r: 3 }, { q: -1, r: 3 }, { q: 0, r: 3 }
+    ];
+    // Gendarm-Eintrittsfeld: die obersten 4 Hexes (r = -3, q von 0 bis 3)
+    const GENDARM_ENTRY = [
+      { q: 0, r: -3 }, { q: 1, r: -3 }, { q: 2, r: -3 }, { q: 3, r: -3 }
+    ];
+
+    if (at.type === 'pany') {
+      SAEUMER_ENTRY.forEach(h => {
+        if (isInBoard(h.q, h.r) && !isLocked(h.q, h.r) && canEnterHex(h.q, h.r, game.activePlayer)) {
+          game.movableHexes.push(h);
+        }
+      });
+      return;
+    }
+    if (at.type === 'madrisa') {
+      GENDARM_ENTRY.forEach(h => {
+        if (isInBoard(h.q, h.r) && !isLocked(h.q, h.r) && canEnterHex(h.q, h.r, game.activePlayer)) {
+          game.movableHexes.push(h);
+        }
+      });
+      return;
+    }
+    if (at.type === 'verlies') {
+      // Befreiter Räuber aus Verlies → ebenfalls untere 4 Hexes (wie aus Pany)
+      const entryHexes = (game.activePlayer === 'saeumer') ? SAEUMER_ENTRY : GENDARM_ENTRY;
+      entryHexes.forEach(h => {
+        if (isInBoard(h.q, h.r) && !isLocked(h.q, h.r) && canEnterHex(h.q, h.r, game.activePlayer)) {
+          game.movableHexes.push(h);
+        }
+      });
+      return;
+    }
+  }
+
+  // Auf Brett: Nachbar-Hexes
+  const neighbors = getNeighbors(at.q, at.r);
+  neighbors.forEach(n => {
+    if (isInBoard(n.q, n.r) && !isLocked(n.q, n.r) && canEnterHex(n.q, n.r, game.activePlayer)) {
+      game.movableHexes.push({ q: n.q, r: n.r });
+    }
+  });
+
+  // Räuber kann zu Pany (untere Spitze, r=3) oder Madrisa (obere Spitze, r=-3)
+  if (game.activePlayer === 'saeumer') {
+    if (at.r === 3) game.movableHexes.push({ ...PANY_HEX });
+    if (at.r === -3) game.movableHexes.push({ ...MADRISA_HEX });
+  }
+  // Gendarm kann zum Verlies (von der unteren Brett-Hälfte) oder Madrisa (Rückkehr)
+  if (game.activePlayer === 'gendarm') {
+    if (at.r >= 1) game.movableHexes.push({ ...VERLIES_HEX });
+    if (at.r === -3) game.movableHexes.push({ ...MADRISA_HEX });
+  }
+}
+
+// Räuber dürfen nicht aufs Hex von Gendarm/Hund
+function canEnterHex(q, r, player) {
+  if (player === 'saeumer') {
+    return !isHexOccupiedByGendarm(q, r);
+  }
+  return true;
+}
+
+function moveFigure(figure, target) {
+  // Falle prüfen
+  if (target.q !== undefined && target.q > -50) {
+    const trap = getTrap(target.q, target.r);
+    if (trap && trap.owner === 'gendarm' && game.activePlayer === 'saeumer') {
+      addLog(`✕ ${figure.name} läuft in eine Drahtschlinge und ist 1 Runde gefesselt!`, 'event');
+      figure.at = target;
+      game.traps = game.traps.filter(t => t !== trap);
+      figure.trapped = 1;
+      game.actionsLeft = 0;
+      game.selectedFigure = null;
+      game.movableHexes = [];
+      renderAll();
+      endActionsPhase();
+      return;
+    }
+  }
+
+  figure.at = target;
+  game.actionsLeft--;
+  addLog(`${figure.name} bewegt nach ${describeHex(target)}.`, game.activePlayer);
+
+  if (game.activePlayer === 'saeumer') {
+    // Madrisa erreichen → Schmuggelgut abliefern
+    if (target.type === 'madrisa' && figure.carrying) {
+      const good = game.smuggleGoods.find(g => g.id === figure.carrying);
+      if (good) {
+        good.delivered = true;
+        good.carriedBy = null;
+        good.at = { ...MADRISA_HEX };
+        addLog(`${figure.name} liefert Schmuggelgut auf dem Madrisa-Joch ab!`, 'event');
+      }
+      figure.carrying = null;
+    }
+
+    // Pany: neues Schmuggelgut aufnehmen
+    if (target.type === 'pany' && !figure.carrying) {
+      const good = game.smuggleGoods.find(g =>
+        g.at.type === 'pany' && !g.delivered && !g.carriedBy
+      );
+      if (good) {
+        good.carriedBy = figure.id;
+        figure.carrying = good.id;
+        addLog(`${figure.name} schultert ein Schmuggelgut.`, 'saeumer');
+      }
+    }
+
+    // Auf Brett-Hex: liegen gelassene Beute aufheben (max. 1 pro Räuber)
+    if (target.q !== undefined && target.q > -50) {
+      tryPickupGood(figure);
+    }
+
+    // Güggelstein berührt → gefangene Räuber befreien
+    if (target.q !== undefined && target.q > -50) {
+      const tile = game.board[`${target.q},${target.r}`];
+      if (tile && tile.type === 'guggelstein') {
+        const captured = game.figures.saeumer.filter(s => s.captured);
+        if (captured.length > 0) {
+          captured.forEach(c => {
+            c.captured = false;
+            c.at = { ...VERLIES_HEX };
+            addLog(`${figure.name} berührt den Güggelstein und befreit ${c.name}!`, 'event');
+          });
+        } else {
+          addLog(`${figure.name} berührt den Güggelstein — niemand gefangen.`, 'saeumer');
+        }
+      }
+    }
+  }
+
+  // Gendarm zieht auf Räuber-Hex → Festnahme
+  if (game.activePlayer === 'gendarm' && target.q !== undefined && target.q > -50) {
+    const caught = game.figures.saeumer.find(s =>
+      !s.captured && s.at.q === target.q && s.at.r === target.r &&
+      s.disguised <= 0 && s.hidden <= 0
+    );
+    if (caught) capture(caught, figure);
+  }
+
+  game.selectedFigure = null;
+  game.movableHexes = [];
+  game.pendingCardAction = null;
+  checkWin();
+
+  if (game.actionsLeft <= 0) endActionsPhase();
+  renderAll();
+}
+
+function capture(saeumer, gendarm) {
+  saeumer.captured = true;
+  // Beute bleibt am Ort der Festnahme liegen
+  if (saeumer.carrying) {
+    const good = game.smuggleGoods.find(g => g.id === saeumer.carrying);
+    if (good) {
+      good.carriedBy = null;
+      good.at = { q: gendarm.at.q, r: gendarm.at.r, type: null };
+      addLog(`${saeumer.name} wird festgenommen! Sein Schmuggelgut bleibt am Festnahme-Ort liegen.`, 'event');
+    }
+    saeumer.carrying = null;
+  } else {
+    addLog(`${saeumer.name} wird festgenommen!`, 'event');
+  }
+  saeumer.at = { ...VERLIES_HEX };
+}
+
+// Hilfsfunktion: Räuber hebt Beute auf, wenn keine getragen wird
+function tryPickupGood(saeumer) {
+  if (saeumer.carrying) return false;
+  if (saeumer.at.q === undefined || saeumer.at.q < -50) return false;
+  const good = game.smuggleGoods.find(g =>
+    !g.delivered && !g.carriedBy &&
+    g.at.q === saeumer.at.q && g.at.r === saeumer.at.r
+  );
+  if (good) {
+    good.carriedBy = saeumer.id;
+    saeumer.carrying = good.id;
+    addLog(`${saeumer.name} hebt ein liegen gelassenes Schmuggelgut auf.`, 'saeumer');
+    return true;
+  }
+  return false;
+}
+
+function describeHex(hex) {
+  if (hex.type === 'pany') return 'Pany';
+  if (hex.type === 'madrisa') return 'Madrisa-Joch';
+  if (hex.type === 'verlies') return 'Verlies';
+  const tile = game.board[`${hex.q},${hex.r}`];
+  return `(${hex.q},${hex.r}) – ${tile ? TILE_LABELS[tile.type] : ''}`;
+}
+
+// --- Karten ziehen und sofort spielen ---
+function drawAndPlayCard() {
+  if (!isMyTurn()) return;
+  if (game.actionsLeft <= 0 || game.pendingCardAction) return;
+  const deck = game.decks[game.activePlayer];
+  if (deck.length === 0) {
+    addLog('Dein Karten-Deck ist leer.', '');
+    return;
+  }
+  const card = deck.shift();
+  game.lastCard = { ...card, player: game.activePlayer };
+  addLog(`Ereigniskarte: ${card.title} — ${card.effect}`, game.activePlayer);
+  playCardEffect(card);
+}
+
+function consumeCardEffect() {
+  game.actionsLeft = 0;
+  game.pendingCardAction = null;
+  game.selectedFigure = null;
+  game.movableHexes = [];
+  renderAll();
+  setTimeout(() => endActionsPhase(), 300);
+}
+
+function playCardEffect(card) {
+  switch (card.type) {
+    case 'help_call': {
+      let moved = 0;
+      game.figures.saeumer.forEach(s => {
+        if (s.captured || s.at.type) return;
+        const candidates = getNeighbors(s.at.q, s.at.r).filter(n =>
+          isInBoard(n.q, n.r) && !isLocked(n.q, n.r) && n.r < s.at.r &&
+          canEnterHex(n.q, n.r, 'saeumer')
+        );
+        if (candidates.length > 0) {
+          s.at = { q: candidates[0].q, r: candidates[0].r, type: null };
+          tryPickupGood(s);
+          moved++;
+        }
+      });
+      addLog(`🥷 Räuber-Karte „Hilferuf": ${moved} Räuber rücken Richtung Pass.`, 'event');
+      consumeCardEffect();
+      break;
+    }
+    case 'reinforce': {
+      const gendarm = game.figures.gendarm.find(g => !g.isDog);
+      if (gendarm) moveFigureTowardsSaeumer(gendarm, 2);
+      addLog('👮 Polizist-Karte „Verstärkung": Polizist pirscht 2 Hex Richtung Räuber.', 'event');
+      consumeCardEffect();
+      break;
+    }
+    case 'hunt':
+      addLog('🐕 Polizist-Karte „Hetzjagd": Hund pirscht 2 Hex Richtung Räuber.', 'event');
+      huntDog(2, () => consumeCardEffect());
+      break;
+    case 'snare':
+      addLog('Drahtschlinge: Klicke ein Brett-Hex.', 'gendarm');
+      game.pendingCardAction = { type: 'snare' };
+      renderAll();
+      break;
+    case 'block':
+      addLog('Wegsperre: Klicke ein Brett-Hex.', 'gendarm');
+      game.pendingCardAction = { type: 'block' };
+      renderAll();
+      break;
+    case 'shot':
+      addLog('Stutzen-Schuss: Klicke einen Räuber in 3 Hex Reichweite.', 'gendarm');
+      game.pendingCardAction = { type: 'shot' };
+      renderAll();
+      break;
+    case 'quickgrab':
+      addLog('Schnellgriff: Klicke einen Räuber auf Nachbar-Hex.', 'gendarm');
+      game.pendingCardAction = { type: 'quickgrab' };
+      renderAll();
+      break;
+    case 'hide':
+      addLog('Heuschober: Klicke einen Räuber.', 'saeumer');
+      game.pendingCardAction = { type: 'hide' };
+      renderAll();
+      break;
+    case 'disguise':
+      addLog('Verkleidung: Klicke einen Räuber.', 'saeumer');
+      game.pendingCardAction = { type: 'disguise' };
+      renderAll();
+      break;
+    case 'bang':
+      addLog('Knall: Klicke den Polizist.', 'saeumer');
+      game.pendingCardAction = { type: 'bang' };
+      renderAll();
+      break;
+    case 'liberator': {
+      const captured = game.figures.saeumer.find(s => s.captured);
+      if (captured) {
+        captured.captured = false;
+        captured.at = { ...VERLIES_HEX };
+        addLog(`Befreier: ${captured.name} ist frei.`, 'event');
+      } else {
+        addLog('Kein Räuber im Verlies.', '');
+      }
+      consumeCardEffect();
+      break;
+    }
+    case 'secret_path':
+      addLog('Geheimpfad: Klicke einen Räuber.', 'saeumer');
+      game.pendingCardAction = { type: 'secret_path' };
+      renderAll();
+      break;
+    case 'sneak':
+    case 'scent':
+    default:
+      addLog(`${card.title}: Effekt aktiviert.`, '');
+      consumeCardEffect();
+  }
+}
+
+function moveFigureTowardsSaeumer(gendarm, steps) {
+  let target = null;
+  let minDist = 99;
+  game.figures.saeumer.forEach(s => {
+    if (s.captured || s.at.type) return;
+    const d = hexDistance(gendarm.at.type ? { q: 0, r: -3 } : gendarm.at, s.at);
+    if (d < minDist) { minDist = d; target = s.at; }
+  });
+  if (!target) return;
+  // Wenn Gendarm noch auf Madrisa, erstmal auf obere Brett-Spitze setzen
+  if (gendarm.at.type === 'madrisa') {
+    gendarm.at = { q: 0, r: -3, type: null };
+  }
+  for (let i = 0; i < steps; i++) {
+    const neighbors = getNeighbors(gendarm.at.q, gendarm.at.r);
+    let best = null, bestD = 99;
+    neighbors.forEach(n => {
+      if (!isInBoard(n.q, n.r) || isLocked(n.q, n.r)) return;
+      const d = hexDistance(n, target);
+      if (d < bestD) { bestD = d; best = n; }
+    });
+    if (best) {
+      gendarm.at = { q: best.q, r: best.r, type: null };
+      const caught = game.figures.saeumer.find(s =>
+        !s.captured && s.at.q === gendarm.at.q && s.at.r === gendarm.at.r &&
+        s.disguised <= 0 && s.hidden <= 0
+      );
+      if (caught) capture(caught, gendarm);
+    }
+  }
+}
+
+function huntDog(extra, onComplete) {
+  const dog = game.figures.gendarm.find(g => g.isDog);
+  if (!dog) { if (onComplete) onComplete(); return; }
+  if (dog.at.type === 'madrisa') {
+    dog.at = { q: 0, r: -3, type: null };
+    renderAll();
+  }
+  let target = null;
+  let minDist = 99;
+  game.figures.saeumer.forEach(s => {
+    if (s.captured || s.at.type) return;
+    const d = hexDistance(dog.at, s.at);
+    if (d < minDist) { minDist = d; target = s.at; }
+  });
+  if (!target) { if (onComplete) onComplete(); return; }
+
+  // Pfad berechnen
+  const path = [];
+  let curAt = { q: dog.at.q, r: dog.at.r };
+  for (let i = 0; i < extra; i++) {
+    const neighbors = getNeighbors(curAt.q, curAt.r);
+    let best = null, bestD = 99;
+    neighbors.forEach(n => {
+      if (!isInBoard(n.q, n.r) || isLocked(n.q, n.r)) return;
+      const d = hexDistance(n, target);
+      if (d < bestD) { bestD = d; best = n; }
+    });
+    if (!best) break;
+    path.push({ q: best.q, r: best.r });
+    curAt = best;
+  }
+
+  if (path.length === 0) { if (onComplete) onComplete(); return; }
+  animateDogStep(dog, path, 0, onComplete);
+}
+
+function animateDogStep(dog, path, idx, onComplete) {
+  if (idx >= path.length) {
+    if (onComplete) onComplete();
+    return;
+  }
+  const step = path[idx];
+  dog.at = { q: step.q, r: step.r, type: null };
+  renderAll();
+  blinkAtHex(step.q, step.r);
+
+  // Festnahme prüfen
+  const caught = game.figures.saeumer.find(s =>
+    !s.captured && s.at.q === step.q && s.at.r === step.r &&
+    s.disguised <= 0 && s.hidden <= 0
+  );
+  if (caught) {
+    setTimeout(() => {
+      addLog(`🐕 Der Hund stellt ${caught.name} im Pirschen!`, 'event');
+      capture(caught, dog);
+      checkWin();
+      renderAll();
+      if (onComplete) onComplete();
+    }, 700);
+    return;
+  }
+
+  // Nächster Schritt nach Blink-Dauer
+  setTimeout(() => animateDogStep(dog, path, idx + 1, onComplete), 700);
+}
+
+function blinkAtHex(q, r) {
+  const svg = document.getElementById('board');
+  if (!svg) return;
+  const p = axialToPixel(q, r);
+  const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  ring.setAttribute('cx', p.x);
+  ring.setAttribute('cy', p.y);
+  ring.setAttribute('r', HEX_SIZE * 0.65);
+  ring.setAttribute('fill', '#d4a017');
+  ring.setAttribute('opacity', '0');
+  ring.setAttribute('pointer-events', 'none');
+  svg.appendChild(ring);
+  setTimeout(() => ring.setAttribute('opacity', '0.55'), 0);
+  setTimeout(() => ring.setAttribute('opacity', '0'), 150);
+  setTimeout(() => ring.setAttribute('opacity', '0.55'), 300);
+  setTimeout(() => ring.setAttribute('opacity', '0'), 450);
+  setTimeout(() => { try { ring.remove(); } catch(e){} }, 700);
+}
+
+function onHexClick(q, r) {
+  if (game.gameOver) return;
+  if (game.pendingCardAction) {
+    handleCardTarget(q, r);
+  }
+}
+
+function handleCardTarget(q, r) {
+  const action = game.pendingCardAction;
+  if (!action) return;
+  switch (action.type) {
+    case 'snare':
+      if (isInBoard(q, r)) {
+        game.traps.push({ hex: { q, r }, owner: 'gendarm', untilRound: game.round + 4 });
+        addLog(`👮 Polizist-Karte „Drahtschlinge": Falle auf (${q},${r}) gelegt. Wirkt 4 Spielzüge.`, 'event');
+        consumeCardEffect();
+      }
+      break;
+    case 'block':
+      if (isInBoard(q, r)) {
+        game.lockedHexes.push({ q, r, untilRound: game.round + 4 });
+        addLog(`👮 Polizist-Karte „Wegsperre": Hex (${q},${r}) gesperrt für 4 Spielzüge.`, 'event');
+        consumeCardEffect();
+      }
+      break;
+    case 'shot': {
+      const target = findFigureAt(q, r, 'saeumer');
+      if (target && !target.captured) {
+        const inRange = game.figures.gendarm.some(g => !g.isDog && hexDistance(g.at, target.at) <= 3);
+        if (inRange) {
+          target.trapped = 1;
+          addLog(`Stutzen-Schuss trifft ${target.name}!`, 'event');
+          consumeCardEffect();
+        } else addLog('Räuber ausser Reichweite.', '');
+      }
+      break;
+    }
+    case 'quickgrab': {
+      const target = findFigureAt(q, r, 'saeumer');
+      if (target && !target.captured) {
+        const adjacent = game.figures.gendarm.some(g => !g.isDog && hexDistance(g.at, target.at) === 1);
+        if (adjacent) {
+          capture(target, game.figures.gendarm[0]);
+          checkWin();
+          consumeCardEffect();
+        } else addLog('Räuber nicht auf Nachbar-Hex.', '');
+      }
+      break;
+    }
+    case 'hide': {
+      const target = findFigureAt(q, r, 'saeumer');
+      if (target && !target.captured) {
+        target.hidden = 1;
+        addLog(`${target.name} versteckt sich.`, 'saeumer');
+        consumeCardEffect();
+      }
+      break;
+    }
+    case 'disguise': {
+      const target = findFigureAt(q, r, 'saeumer');
+      if (target && !target.captured) {
+        target.disguised = 1;
+        addLog(`${target.name} mischt sich unter Zivilisten.`, 'saeumer');
+        consumeCardEffect();
+      }
+      break;
+    }
+    case 'bang': {
+      const target = findFigureAt(q, r, 'gendarm');
+      if (target && !target.isDog) {
+        const candidates = getNeighbors(target.at.q, target.at.r).filter(n =>
+          isInBoard(n.q, n.r) && !isLocked(n.q, n.r) && n.r < target.at.r
+        );
+        if (candidates.length > 0) {
+          target.at = { q: candidates[0].q, r: candidates[0].r, type: null };
+        }
+        addLog(`🥷 Räuber-Karte „Knall": Polizist weicht 1 Hex Richtung Madrisa zurück.`, 'event');
+        consumeCardEffect();
+      }
+      break;
+    }
+    case 'secret_path': {
+      const target = findFigureAt(q, r, 'saeumer');
+      if (target && !target.captured && !target.at.type) {
+        for (let i = 0; i < 2; i++) {
+          const candidates = getNeighbors(target.at.q, target.at.r).filter(n =>
+            isInBoard(n.q, n.r) && !isLocked(n.q, n.r) && n.r < target.at.r &&
+            canEnterHex(n.q, n.r, 'saeumer')
+          );
+          if (candidates.length > 0) {
+            target.at = { q: candidates[0].q, r: candidates[0].r, type: null };
+            tryPickupGood(target);
+          }
+        }
+        addLog(`${target.name} nutzt den Geheimpfad.`, 'saeumer');
+        consumeCardEffect();
+      } else {
+        addLog('Wähle einen Räuber auf dem Brett.', '');
+      }
+      break;
+    }
+  }
+}
+
+function endActionsPhase() {
+  game.turnsSinceWeather++;
+  if (game.turnsSinceWeather >= TURNS_BETWEEN_WEATHER) {
+    game.turnsSinceWeather = 0;
+    drawTileCard();
+  } else {
+    setTimeout(() => switchPlayer(), 300);
+  }
+}
+
+function drawTileCard() {
+  if (game.decks.tile.length === 0) {
+    addLog('Wetter-Deck leer — Zeit ist abgelaufen!', 'event');
+    checkWin();
+    return;
+  }
+  const tile = game.decks.tile.shift();
+  addLog(`Wetter / Ereignis: ${tile.title} — ${tile.effect}`, 'tile');
+  applyTileCard(tile);
+}
+
+function applyTileCard(card) {
+  switch (card.type) {
+    case 'avalanche': {
+      const allHexes = Object.values(game.board).filter(t => !isLocked(t.q, t.r) && t.type !== 'guggelstein');
+      if (allHexes.length === 0) break;
+      const center = allHexes[Math.floor(Math.random() * allHexes.length)];
+      game.lockedHexes.push({ q: center.q, r: center.r, untilRound: game.round + 3 });
+      const neighbors = getNeighbors(center.q, center.r).filter(n =>
+        isInBoard(n.q, n.r) && !isLocked(n.q, n.r)
+      );
+      if (neighbors.length > 0) {
+        const n = neighbors[Math.floor(Math.random() * neighbors.length)];
+        game.lockedHexes.push({ q: n.q, r: n.r, untilRound: game.round + 3 });
+      }
+      addLog('Lawine sperrt zwei Pfade für 3 Spielzüge!', 'event');
+      game.weather = 'Lawine';
+      break;
+    }
+    case 'blizzard':
+      game.weather = 'Schneesturm';
+      game.blizzardActive = 4; // 4 Spielzüge ≈ 2 Runden
+      addLog('Schneesturm tobt — alle Räuber sind 2 Runden komplett unsichtbar!', 'event');
+      break;
+    case 'moonlight':
+      game.weather = 'Mondlicht';
+      game.moonlightActive = 4; // 4 Spielzüge ≈ 2 Runden
+      Object.values(game.board).forEach(t => { t.revealed = true; });
+      addLog('Mondlicht — alle Räuber sind 2 Runden sichtbar.', 'event');
+      break;
+    case 'landslide': {
+      game.weather = 'Erdrutsch';
+      const allHexes = Object.values(game.board).filter(t => !isLocked(t.q, t.r) && t.type !== 'guggelstein');
+      let cnt = 0;
+      for (let i = 0; i < 3 && allHexes.length > 0; i++) {
+        const idx = Math.floor(Math.random() * allHexes.length);
+        const h = allHexes.splice(idx, 1)[0];
+        game.lockedHexes.push({ q: h.q, r: h.r, untilRound: game.round + 4 });
+        cnt++;
+      }
+      addLog(`Erdrutsch sperrt ${cnt} Hex für 4 Spielzüge!`, 'event');
+      break;
+    }
+    case 'rockfall': {
+      game.weather = 'Felssturz';
+      const allHexes = Object.values(game.board).filter(t => !isLocked(t.q, t.r) && t.type !== 'guggelstein');
+      if (allHexes.length > 0) {
+        const h = allHexes[Math.floor(Math.random() * allHexes.length)];
+        game.lockedHexes.push({ q: h.q, r: h.r, untilRound: 999999 });
+        addLog('Felssturz am Madrisa! Ein Hex bleibt für immer gesperrt.', 'event');
+      }
+      break;
+    }
+    case 'flood': {
+      game.weather = 'Wildbach';
+      const allHexes = Object.values(game.board).filter(t => !isLocked(t.q, t.r) && t.type !== 'guggelstein');
+      if (allHexes.length > 0) {
+        const center = allHexes[Math.floor(Math.random() * allHexes.length)];
+        game.lockedHexes.push({ q: center.q, r: center.r, untilRound: game.round + 3 });
+        const ns = getNeighbors(center.q, center.r).filter(n =>
+          isInBoard(n.q, n.r) && !isLocked(n.q, n.r)
+        );
+        if (ns.length > 0) {
+          const n = ns[Math.floor(Math.random() * ns.length)];
+          game.lockedHexes.push({ q: n.q, r: n.r, untilRound: game.round + 3 });
+        }
+        addLog('Wildbach-Überflutung sperrt 2 Hex für 3 Spielzüge.', 'event');
+      }
+      break;
+    }
+    case 'sniff':
+      game.weather = 'Hund schnüffelt';
+      huntDog(2);
+      break;
+    case 'eagle': {
+      game.weather = 'Adler kreist';
+      const free = game.figures.saeumer.filter(s => !s.captured && isOnBoardHex(s.at));
+      if (free.length > 0) {
+        const r = free[Math.floor(Math.random() * free.length)];
+        r.markedByEagle = 4;
+        addLog(`Adler kreist über ${r.name} — er ist 2 Runden für den Polizisten sichtbar!`, 'event');
+      } else {
+        addLog('Adler kreist — kein freier Räuber zu sehen.', 'event');
+      }
+      break;
+    }
+    case 'ibex': {
+      game.weather = 'Steinbock-Herde';
+      let mvd = 0;
+      game.figures.saeumer.forEach(s => {
+        if (s.captured || !isOnBoardHex(s.at)) return;
+        const tile = game.board[`${s.at.q},${s.at.r}`];
+        if (!tile || tile.type !== 'rock') return;
+        for (let i = 0; i < 2; i++) {
+          const cands = getNeighbors(s.at.q, s.at.r).filter(n =>
+            isInBoard(n.q, n.r) && !isLocked(n.q, n.r) && n.r > s.at.r &&
+            canEnterHex(n.q, n.r, 'saeumer')
+          );
+          if (cands.length > 0) {
+            s.at = { q: cands[0].q, r: cands[0].r, type: null };
+            mvd++;
+          }
+        }
+      });
+      addLog(`Steinbock-Herde scheucht Räuber von Felsen 2 Hex Richtung Pany. (${mvd} Schritte)`, 'event');
+      break;
+    }
+    case 'farmer':
+      game.weather = 'Polizist versumpft';
+      game.skipNextGendarmAction = true;
+      addLog('Polizist versumpft beim Bauern auf der Alp — er verliert seine nächste Aktion.', 'event');
+      break;
+    case 'meteor': {
+      game.weather = 'Sternschnuppenregen';
+      let cnt = 0;
+      game.figures.saeumer.forEach(s => {
+        if (!s.captured && isOnBoardHex(s.at) && s.at.r === 0) {
+          s.starlit = 2;
+          cnt++;
+        }
+      });
+      addLog(`Sternschnuppenregen — ${cnt} Räuber auf der Mittelreihe sind 1 Runde sichtbar!`, 'event');
+      break;
+    }
+    case 'shift': {
+      game.weather = 'Wachablösung';
+      const police = game.figures.gendarm.find(g => !g.isDog);
+      const dog2 = game.figures.gendarm.find(g => g.isDog);
+      if (police && dog2) {
+        const tmp = { ...police.at };
+        police.at = { ...dog2.at };
+        dog2.at = tmp;
+        addLog('Wachablösung — Polizist und Hund tauschen Positionen.', 'event');
+      }
+      break;
+    }
+    case 'gathering': {
+      game.weather = 'Versammlung am Güggelstein';
+      const guggel = Object.values(game.board).find(t => t.type === 'guggelstein');
+      if (guggel) {
+        let cnt = 0;
+        game.figures.saeumer.forEach(s => {
+          if (s.captured) return; // im Verlies bleibt drin
+          s.at = { q: guggel.q, r: guggel.r, type: null };
+          cnt++;
+        });
+        addLog(`Räuber-Versammlung am Güggelstein — ${cnt} freie Räuber sammeln sich (mit Beute).`, 'event');
+      }
+      break;
+    }
+    case 'spirit': {
+      game.weather = 'Berggeist';
+      const candidates = game.figures.saeumer.filter(s => !s.captured && isOnBoardHex(s.at));
+      candidates.sort((a, b) => {
+        if (a.carrying && !b.carrying) return -1;
+        if (!a.carrying && b.carrying) return 1;
+        return a.at.r - b.at.r;
+      });
+      if (candidates.length > 0) {
+        const s = candidates[0];
+        let stp = 0;
+        for (let i = 0; i < 2; i++) {
+          const cands = getNeighbors(s.at.q, s.at.r).filter(n =>
+            isInBoard(n.q, n.r) && !isLocked(n.q, n.r) && n.r < s.at.r &&
+            canEnterHex(n.q, n.r, 'saeumer')
+          );
+          if (cands.length > 0) {
+            s.at = { q: cands[0].q, r: cands[0].r, type: null };
+            tryPickupGood(s);
+            stp++;
+          }
+        }
+        addLog(`Berggeist führt ${s.name} ${stp} Hex Richtung Pass.`, 'event');
+      }
+      break;
+    }
+    case 'blessing': {
+      game.weather = 'Alpsegen';
+      let cnt = 0;
+      game.figures.saeumer.forEach(s => {
+        if (!s.captured) {
+          s.disguised = Math.max(s.disguised || 0, 2);
+          cnt++;
+        }
+      });
+      addLog(`Alpsegen schützt ${cnt} Räuber 1 Runde vor Festnahme.`, 'event');
+      break;
+    }
+    default: game.weather = card.title;
+  }
+  renderAll();
+  setTimeout(() => switchPlayer(), 1000);
+}
+
+function switchPlayer() {
+  game.figures.saeumer.forEach(s => {
+    if (s.hidden > 0) s.hidden--;
+    if (s.disguised > 0) s.disguised--;
+    if (s.trapped > 0) s.trapped--;
+    if (s.markedByEagle > 0) s.markedByEagle--;
+    if (s.starlit > 0) s.starlit--;
+  });
+  if (game.moonlightActive > 0) game.moonlightActive--;
+  if (game.blizzardActive > 0) game.blizzardActive--;
+  game.lockedHexes = game.lockedHexes.filter(l => l.untilRound > game.round);
+  game.traps = game.traps.filter(t => !t.untilRound || t.untilRound > game.round);
+
+  game.activePlayer = (game.activePlayer === 'saeumer') ? 'gendarm' : 'saeumer';
+  game.round++;
+
+  if (game.activePlayer === 'gendarm' && game.skipNextGendarmAction) {
+    game.skipNextGendarmAction = false;
+    game.actionsLeft = 0;
+    addLog('Polizist beim Bauern auf der Alp zum Karten Spielen — verliert seinen Zug.', 'event');
+    setTimeout(() => endActionsPhase(), 500);
+    return;
+  }
+
+  game.actionsLeft = 1;
+  game.selectedFigure = null;
+  game.pendingCardAction = null;
+  game.movableHexes = [];
+
+  // Brett im neuen Zustand rendern
+  renderAll();
+
+  // Im AI-Modus: kein Handover, KI spielt automatisch wenn dran
+  if (net.mode === 'ai') {
+    if (isAiTurn()) {
+      // KI ist dran — Events vom Mensch-Zug verwerfen, dann KI agieren lassen
+      game.lastTurnEvents = [];
+      triggerAiTurn();
+    } else {
+      // Mensch ist wieder dran — zeige Summary der KI-Events (falls vorhanden)
+      showTurnSummary(game.lastTurnEvents);
+    }
+    return;
+  }
+
+  // Im Online-Modus: State an Mitspieler senden, kein Handover-Screen
+  if (net.mode === 'host' || net.mode === 'join') {
+    broadcastState();
+    return;
+  }
+
+  showHandover();
+}
+
+function showHandover() {
+  document.getElementById('handover-title').textContent =
+    (game.activePlayer === 'saeumer') ? 'Räuber am Zug' : 'Polizist am Zug';
+
+  let html = `Reiche den Computer dem ${(game.activePlayer === 'saeumer') ? 'Räuber-Spieler' : 'Polizist-Spieler'}.`;
+
+  if (game.lastTurnEvents && game.lastTurnEvents.length > 0) {
+    html += '<div style="margin-top: 18px; padding: 12px 16px; background: #f4e8c8; border-left: 4px solid #d4a017; border-radius: 6px; text-align: left;">';
+    html += '<div style="font-weight: bold; color: #5c3a1e; margin-bottom: 6px;">Im letzten Spielzug ist passiert:</div>';
+    html += '<ul style="margin: 0; padding-left: 18px; color: #5c3a1e;">';
+    game.lastTurnEvents.forEach(e => {
+      html += `<li style="margin: 3px 0;">${escapeHtml(e)}</li>`;
+    });
+    html += '</ul></div>';
+  }
+
+  document.getElementById('handover-text').innerHTML = html;
+  document.getElementById('handover-screen').hidden = false;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+  );
+}
+
+function continueAfterHandover() {
+  document.getElementById('handover-screen').hidden = true;
+  game.lastTurnEvents = [];
+  renderAll();
+}
+
+function showTurnSummary(events) {
+  if (!events || events.length === 0) return false;
+  let html = '<ul>';
+  events.forEach(e => { html += `<li>${escapeHtml(e)}</li>`; });
+  html += '</ul>';
+  document.getElementById('turn-summary-text').innerHTML = html;
+  document.getElementById('turn-summary-screen').hidden = false;
+  return true;
+}
+
+function closeTurnSummary() {
+  document.getElementById('turn-summary-screen').hidden = true;
+  game.lastTurnEvents = [];
+  renderAll();
+}
+
+function endTurn() {
+  if (game.gameOver) return;
+  if (!isMyTurn()) return;
+  if (game.actionsLeft > 0) {
+    if (!confirm(`Du hast noch deine Aktion offen. Wirklich passen?`)) return;
+  }
+  game.actionsLeft = 0;
+  endActionsPhase();
+}
+
+function checkWin() {
+  const delivered = game.smuggleGoods.filter(g => g.delivered).length;
+  if (delivered >= 2) {
+    endGame('saeumer', `Räuber-Sieg! ${delivered} Schmuggelgüter erfolgreich abgeliefert.`);
+    return;
+  }
+  const captured = game.figures.saeumer.filter(s => s.captured).length;
+  if (captured >= 3) {
+    endGame('gendarm', 'Polizist-Sieg! Alle Räuber im Verlies.');
+    return;
+  }
+  if (game.decks.tile.length === 0 && game.actionsLeft <= 0) {
+    if (delivered >= 2) endGame('saeumer', `Räuber-Sieg auf Zeit! ${delivered} Güter durchgebracht.`);
+    else endGame('gendarm', `Polizist-Sieg auf Zeit! Nur ${delivered} Güter durchgekommen.`);
+  }
+}
+
+function endGame(winner, text) {
+  game.gameOver = true;
+  document.getElementById('win-title').textContent =
+    (winner === 'saeumer') ? 'Räuber triumphieren!' : 'Polizist gewinnt!';
+  document.getElementById('win-text').textContent = text;
+  document.getElementById('win-screen').hidden = false;
+}
+
+function restartGame() {
+  document.getElementById('win-screen').hidden = true;
+  document.getElementById('handover-screen').hidden = true;
+  document.getElementById('intro-screen').hidden = false;
+  // Modus-Auswahl wieder zeigen
+  ['step-hotseat','step-host','step-host-waiting','step-join'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.hidden = true;
+  });
+  document.getElementById('step-mode').hidden = false;
+  cancelOnline();
+}
+
+// Alias für Rückwärts-Kompatibilität
+function startGame() { startHotSeat(); }
+
+// Beim Laden: Datei-Protokoll prüfen
+window.addEventListener('DOMContentLoaded', () => {
+  checkLocationForOnline();
+});
+
+</script>
+</body>
+</html>
